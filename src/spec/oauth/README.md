@@ -2,13 +2,12 @@
 
 OAuth introduces an authorization layer to the client-server authentication model by separating the role of the _client_ from that of the _resource owner_.
 
-> [!IMPORTANT]
+> [!NOTE]
 > OAuth is NOT an authentication protocol. If the goal is to authenticate users, an authentication protocol, like OpenID Connect (OIDC), is necessary.
 
 The client requests access to resources controlled by the resource owner and hosted by the _resource server_. For the request to be served, the client needs to provide a valid _access token_, which was issued by the _authorization server_, with the approval of the resource owner.
 
-> [!NOTE] Example
-> An end user (resource owner) grants a financial management service (client) access to their transaction history stored at a banking service (resource server) without sharing their credentials with the financial management service. They authenticate directly with their financial institution's server (authorization server), which issues the financial management service specific credentials (access token).
+Example: An end user (resource owner) grants a financial management service (client) access to their transaction history stored at a banking service (resource server) without sharing their credentials with the financial management service. They authenticate directly with their financial institution's server (authorization server), which issues the financial management service specific credentials (access token).
 
 The spec is designed for use with HTTP. The use of OAuth over any protocol other than HTTP is out of scope.
 
@@ -25,7 +24,7 @@ OAuth defines four roles:
 - `"client"`:
   An application making protected resource requests on behalf of the resource owner and with its authorization. The term "client" does not imply any particular implementation characteristics (e.g., whether the application executes on a server, a desktop, or other devices).
 
-`"authorization server" (AS)`:
+- `"authorization server" (AS)`:
 The server issuing access tokens to the client after successfully authenticating the resource owner and obtaining authorization.
 The `Authorization Server` may be the same server as the `Resource Server` or a separate entity.
 A single `Authorization Server` may issue access tokens accepted by multiple `Resource Servers`.
@@ -49,7 +48,7 @@ A single `Authorization Server` may issue access tokens accepted by multiple `Re
 |        |--(5)----- Access Token ------>|    Resource   |
 |        |                               |     Server    |
 |        |<-(6)--- Protected Resource ---|               |
-+--------+
++--------+                               +---------------+
 ```
 
 (1) The `client` requests authorization from the `Resource Owner`. The authorization request can be made directly to the `Resource Owner` (as shown), or preferably indirectly via the `Authorization Server` as an intermediary.
@@ -155,9 +154,9 @@ Client authentication allows an `Authorization Server` to ensure it's interactin
 
 The OAuth spec has been designed around the following _client profiles_:
 
--`"web application"`: A `client` running on a web server. The client credentials, as well as any access tokens issued to the `client`, are stored on the web server and are not exposed to or accessible by the `Resource Owner`.
+- `"web application"`: A `client` running on a web server. The client credentials, as well as any access tokens issued to the `client`, are stored on the web server and are not exposed to or accessible by the `Resource Owner`.
 
--`"browser-based application"`: A `client` in which the client code is downloaded from a web server and executes within a user agent (e.g. web browser) on a device used by the `Resource Owner`. Protocol data and credentials are easily accessible to the `Resource Owner`. If such applications wish to use client credentials, it is recommended to utilize the back-end for front-end pattern.
+- `"browser-based application"`: A `client` in which the client code is downloaded from a web server and executes within a user agent (e.g. web browser) on a device used by the `Resource Owner`. Protocol data and credentials are easily accessible to the `Resource Owner`. If such applications wish to use client credentials, it is recommended to utilize the back-end for front-end pattern.
 
 - `"native application"`: A `client` installed and executed on a device used by the `Resource Owner`. Protocol data and credentials are accessible to the `Resource Owner`. It is assumed that any client authentication credentials included in the app can be extracted. If such applications wish to use client credentials, it is recommended to utilize the back-end for front-end pattern, or issue the credentials at runtime using Dynamic Client Registration [RFC7591].
 
@@ -273,7 +272,7 @@ Authorization: Basic czZCaGRSa3F0Mzo3RmpmcDBaQnIxS3REUmJuZlZkbUl3
 > [!NOTE]
 > This method of initially form-encoding the client identifier and secret, and then using the encoded values as the HTTP Basic authentication username and password has led to many interoperability problems in the past. Including the credentials in the request body content avoids the encoding issues and leads to more interoperable implementations.
 
-> [!IMPORANT]
+> [!IMPORTANT]
 > Since the client's secret authentication method involves a password, the `Authorization Server` **MUST** protect any endpoint utilizing it against brute force attacks.
 
 ## Unregistered Clients

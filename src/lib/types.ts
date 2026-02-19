@@ -70,7 +70,7 @@ type AccessToken = string;
  * - Scopes are defined by `Authorization Server` or by extensions or profiles of OAuth (e.g. OpenID). It is
  * recommended to avoid defining custom scopes that conflict with scopes from known extensions.
  */
-type Scope = string;
+export type Scope = string;
 
 /**
  * ## Limited-Scope Access Token
@@ -113,7 +113,7 @@ type Scope = string;
  * such as DPoP [RFC 9449], or mTLS [RFC 8705]
  * - It is RECOMMENDED to use end-to-end TLS between the client and the `Resource Server`.
  */
-type AccessTokenType = "limited_scope" | "bearer" | "sender_constrained";
+export type AccessTokenType = "limited_scope" | "bearer" | "sender_constrained";
 
 // TOKEN ENDPOINT
 

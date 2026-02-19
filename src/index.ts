@@ -1,14 +1,16 @@
-import { Hono } from 'hono'
+import { Hono } from "hono";
+import authorization from "./authorization/route.js";
+import token from "./token/route.js";
 
-const app = new Hono()
+const app = new Hono();
 
-const welcomeStrings = [
-  'Hello Hono!',
-  'To learn more about Hono on Vercel, visit https://vercel.com/docs/frameworks/backend/hono'
-]
+app.get("/", (c) => {
+	return c.text(
+		"Hello Hono!\n\nTo learn more about Hono on Vercel, visit https://vercel.com/docs/frameworks/backend/hono",
+	);
+});
 
-app.get('/', (c) => {
-  return c.text(welcomeStrings.join('\n\n'))
-})
+app.route("/token", token);
+app.route("/authorization", authorization);
 
-export default app
+export default app;

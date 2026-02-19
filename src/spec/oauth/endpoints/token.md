@@ -1,18 +1,18 @@
-# Token Endpoint
+# Token endpoint
 
-The **token endpoint** is used by the `client` to obtain an access token using a grant, such as those described in Section 4 and Section 4.3.
+The `/token` endpoint is used by the `client` to obtain an access token using a grant, such as those described in Section 4 and Section 4.3.
 
 > [!NOTE]
-> The token endpoint URL **MUST NOT** include a fragment component, and **MAY** include a query string component.
+> The `/token` endpoint URL **MUST NOT** include a fragment component, and **MAY** include a query string component.
 
-`Authorization Servers` that wish to support browser-based applications (e.g. applications running exclusively in client-side JavaScript without access to a supporting back-end server), will need to ensure the token endpoint supports the necessary CORS [WHATWG.CORS] headers to allow the responses to be visible to the application.
+`Authorization Servers` that wish to support browser-based applications (e.g. applications running exclusively in client-side JavaScript without access to a supporting back-end server), will need to ensure the `/token` endpoint supports the necessary CORS [WHATWG.CORS] headers to allow the responses to be visible to the application.
 
 ## Token Request
 
 > [!IMPORTANT]
-> Confidential clients **MUST** authenticate with the `Authorization Server` when making requests to the token endpoint.
+> Confidential clients **MUST** authenticate with the `Authorization Server` when making requests to the `/token` endpoint.
 
-The `client` **MUST** use the HTTP `POST` to make a request to the token endpoint. The request content has to contain the following parameters:
+The `client` **MUST** use the HTTP `POST` to make a request to the `/token` endpoint. The request content has to contain the following parameters:
 
 | Parameter  | Optionality | Description                                                                                                                                                                                                       |
 | ---------- | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
