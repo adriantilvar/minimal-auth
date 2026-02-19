@@ -1,10 +1,4 @@
-# Authorization Grant
-
-An authorization grant represents the `Resource Owner's` authorization (to access its protected resources) used by the `client` to obtain an access token.
-
-This specification defines three grant types--authorization code, refresh token, and client credentials--as well as an extensibility mechanism for defining additional types.
-
-## Authorization Code Grant
+# Authorization Code Grant
 
 An authorization code is a temporary credential used by the `client` to obtain an access token and optionally a refresh token.
 
@@ -50,7 +44,7 @@ This is a redirect-based flow, so the `client` must be capable of initiating the
 
 (5) The `Authorization Server` authenticates the `client` (when possible), validates the authorization code, validates the `code_verifier`, and ensures that the `redirect_uri` received matches the URI used to redirect the `client` in step (3). If valid, the `Authorization Server` responds back with an access token and, optionally, a refresh token.
 
-### Code Verifier
+## Code Verifier
 
 `Clients` use a unique secret, called a _code verifier_, per authorization request to protect against authorization code injection and CSRF attacks. The `client` generates the code verifier to store it temporarily, then derives the _code challenge_ to include it in the authorization request. The `client` uses the code verifier when exchanging the authorization code at a token endpoint to prove that it is the same `client` that requested the authorization code.
 
@@ -68,9 +62,9 @@ The `client` creates a code challenge derived from the code verifier by using on
 
 The properties `'code_challenge'` and `'code_verifier'` are adopted from the OAuth 2.0 extension known as _Proof-Key for Code Exchange_ (PKCE) [RFC7636], where this technique was originally developed.
 
-### Authorization Request
+## Authorization Request
 
-1. The `client` builds the authorization request URI by adding the following parameters to the query component of the `/authorization` endpoint URI: (TODO: Check Appendix C.1)
+The `client` builds the authorization request URI by adding the following parameters to the query component of the `/authorization` endpoint URI: (TODO: Check Appendix C.1)
 
 | Parameter             | Optionality | Description                                                                                                                                                                                   |
 | --------------------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -85,7 +79,7 @@ The properties `'code_challenge'` and `'code_verifier'` are adopted from the OAu
 > [!Warning]
 > The `state` and `scope` parameters **SHOULD NOT** include sensitive client or `Resource Owner` information in plain text, as they can be transmitted over insecure channels or stored insecurely.
 
-2. The `client` directs the `Resource Owner` to the constructed URI using an HTTP redirection, or by other means available to it via the user agent.
+The `client` directs the `Resource Owner` to the constructed URI using an HTTP redirection, or by other means available to it via the user agent.
 
 For example, the `client` directs the user agent to make the following HTTPS request (with extra line breaks for display purposes only):
 
@@ -97,7 +91,7 @@ GET /authorize?response_type=code&client_id=s6BhdRkqt3&state=xyz
 Host: server.example.com
 ```
 
-3. The `Authorization Server` validates the request to ensure that all required parameters are present and valid.
+The `Authorization Server` validates the request to ensure that all required parameters are present and valid.
 
 In particular, the `Authorization Server` **MUST** validate the `redirect_uri` in the request if present, ensuring that it matches one of the registered redirect URIs previously established during client registration.
 
@@ -105,11 +99,11 @@ When comparing the two URIs the `Authorization Server` **MUST** ensure that the 
 
 The only exception is native apps using a localhost URI: In this case, the `Authorization Server` **MUST** allow variable port numbers as described in Section 7.3 of [RFC8252].
 
-4. If the request is valid, the `Authorization Server` authenticates the `Resource Owner` and obtains an authorization decision (by asking the `Resource Owner` or by establishing approval via other means).
+If the request is valid, the `Authorization Server` authenticates the `Resource Owner` and obtains an authorization decision (by asking the `Resource Owner` or by establishing approval via other means).
 
-5. When a decision is established, the `Authorization Server` directs the user agent to the provided `client` redirect URI using an HTTP redirection response, or by other means available to it via the user agent.
+When a decision is established, the `Authorization Server` directs the user agent to the provided `client` redirect URI using an HTTP redirection response, or by other means available to it via the user agent.
 
-### Success Response
+## Success Response
 
 If the `Resource Owner` grants the access request, the `Authorization Server` issues an authorization code and delivers it to the `client` by adding the following parameters to the query component of the redirect URI:
 
@@ -141,6 +135,81 @@ For example, the `Authorization Server` redirects the user agent by sending the 
 
 The `code_challenge` and `code_challenge_method` values may be stored in encrypted form in the `code` itself, but the server **MUST NOT** include the `code_challenge` value in a response parameter in a form that entities other than the `Authorization Server` can extract.
 
-### Error Response
+## Error Response
 
-### Token Endpoint Extension
+If the request fails due to a missing, invalid, or mismatching `redirect_uri`, or if the `client_id` is missing or invalid, the the `Authorization Server` **SHOULD** inform the `Resource Owner` of the error and **MUST NOT** automatically redirect the user agent to the invalid redirect URI.
+
+An `Authorization Server` **MUST** reject requests without a `code_challenge` from public clients, and **MUST** reject such requests from other clients unless here is reasonable assurance that the client mitigates authorization code injection in other ways. See Section 7.5.1 for details.
+
+If the server does not support the requested `code_challenge_method` transformation, the authorization endpoint **MUST** return the authorization error response with error value set to `'invalid_request'`.
+
+If the `Resource Owner` denies the access request or if the request fails for reasons other than a missing or invalid `redirect_uri`, the `Authorization Server` informs the `client` by adding the following parameters to the query component of the redirect URI:
+
+| Parameter         | Optionality | Description                                                                                                                                         |
+| ----------------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| error             | REQUIRED    | One of the error codes defined below                                                                                                                |
+| error_description | OPTIONAL    | Human-readable ASCII [USASCII] text providing additional information, used to assist the client developer in understanding the error that occurred. |
+| error_uri         | OPTIONAL    | A URI identifying a human-readable web page, used to provide the client developer with additional information about the error.                      |
+| state             | OPTIONAL    | The exact value received from the client. It is required if a state parameter was present in the client authorization request.                      |
+| iss               | OPTIONAL    | The identifier of the `Authorization Server`.                                                                                                       |
+
+> [!NOTE]
+>
+> - Values for the `error` and `error_description` parameters **MUST NOT** include characters outside the set `%x20-21 / %x23-5B / %x5D-7E`.
+> - Values for the `error_uri` parameter **MUST NOT** include characters outside the set `%x21 / %x23-5B / %x5D-7E`.
+
+### Error Codes
+
+| Error Code                  | Description                                                                                                                                                                                                                                           |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `invalid_request`           | The request is missing a required parameter, includes an invalid parameter value, includes a parameter more than once, or is otherwise malformed.                                                                                                     |
+| `unauthorized_client`       | The client is not authorized to request an authorization code using this method.                                                                                                                                                                      |
+| `access_denied`             | The `Resource Owner` or `Authorization Server` denied the request.                                                                                                                                                                                    |
+| `unsupported_response_type` | The `Authorization Server` does not support obtaining an authorization code using this method.                                                                                                                                                        |
+| `invalid_scope`             | The requested scope is invalid, unknown, or malformed.                                                                                                                                                                                                |
+| `server_error`              | The `Authorization Server` encountered an unexpected condition that prevented it from fulfilling the request. (needed because a `500 Internal Server Error` HTTP status code cannot be returned to the `client` via an HTTP redirect).                |
+| `temporarily_unavailable`   | The `Authorization Server` is currently unable to handle the request due to temporary overloading or maintenance of the server (needed because a `503 Service Unavailable` HTTP status code cannot be returned to the `client` via an HTTP redirect). |
+
+For example, the `Authorization Server` redirects the user agent by sending the following HTTP response:
+
+```bash
+ HTTP/1.1 302 Found
+ Location: https://client.example.com/cb?error=access_denied
+           &state=xyz&iss=https%3A%2F%2Fauthorization-server.example.com
+```
+
+## Token Endpoint Extension
+
+If the `grant_type` with a value of `authorization_code` is identified at the `/token` endpoint, the following additional token request parameters (beyond Section 3.2.2) are supported:
+
+| Parameter     | Optionality | Description                                                                                                                                                          |
+| ------------- | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| code          | REQUIRED    | The authorization code received from the `Authorization Server`.                                                                                                     |
+| code_verifier | OPTIONAL    | The original code verifier string. **MUST** be included if the `code_challenge` parameter was included in the authorization request; **MUST NOT** be used otherwise. |
+| client_id     | OPTIONAL    | REQUIRED if the `client` is not authenticating with the `Authorization Server` as described in Section 3.2.1.                                                        |
+
+> [!IMPORTANT]
+> The `Authorization Server` **MUST** return an access token only once for a given authorization code.
+>
+> If a second valid token request is made with the same authorization code as a previously successful token request, the `Authorization Server` **MUST** deny the request and **SHOULD** revoke (when possible) all access tokens and refresh tokens previously issued based on that authorization code.
+
+For example, the `client` makes the following HTTPS request (with extra line breaks for display purposes only):
+
+```bash
+POST /token HTTP/1.1
+Host: server.example.com
+Authorization: Basic czZCaGRSa3F0MzpnWDFmQmF0M2JW
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=authorization_code
+&code=SplxlOBeZQQYbYS6WxSbIA
+&code_verifier=3641a2d12d66101249cdf7a79c000c1f8c05d2aafcf14bf146497bed
+```
+
+In addition to the processing rules for the `/token` endpoint request, the `Authorization Server` **MUST**:
+
+- ensure that the authorization code was issued to the authenticated confidential `client`, or if the `client` is public, ensure that the code was issued to `client_id` in the request,
+- verify that the authorization code is valid,
+- verify that the `code_verifier` parameter is present if and only if a `code_challenge` parameter was present in the authorization request,
+- if a `code_verifier` is present, verify the `code_verifier` by calculating the code challenge received from it and comparing it with the previously associated `code_challenge`, after transforming it according to the `code_challenge_method` method specified by the `client`,
+- if there was no `code_challenge` in the authorization request associated with the authorization code in the token request, the `Authorization Server` **MUST** reject the token request.

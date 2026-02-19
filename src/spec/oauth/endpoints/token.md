@@ -23,7 +23,7 @@ The request must use the `application/x-www-form-urlencoded` media type, with th
 
 > [!NOTE]
 >
-> - The `Authorization Server` **MUST** ignore unrecognized request parameters sent the token endpoint.
+> - The `Authorization Server` **MUST** ignore unrecognized request parameters.
 > - Request and response parameters **MUST NOT** be included more than once.
 > - Parameters sent without a value **MUST** be treated as if they were omitted from the request.
 
@@ -46,13 +46,13 @@ If the access token request is valid and authorized, the `Authorization Server` 
 
 The `Authorization Server` sends a response with the following parameters:
 
-| Parameter     | Optionality            | Description                                                                                                                                                                                            |
-| ------------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| access_token  | REQUIRED               | The access token issued by the `Authorization Server`                                                                                                                                                  |
-| token_type    | REQUIRED               | The type of the access token issued. Value is case insensitive.                                                                                                                                        |
-| expires_in    | RECOMMENDED            | A JSON number that represents the lifetime in seconds of the access token. For example, the value 3600 denotes that the access token will expire in one hour from the time the response was generated. |
-| scope         | RECOMMENDED / REQUIRED | Recommended if identical to the scope requested by the `client`, required otherwise                                                                                                                    |
-| refresh_token | OPTIONAL               | A token that can be used to obtain new access tokens based on the grant passed in the corresponding token request                                                                                      |
+| Parameter     | Optionality            | Description                                                                                                                                                                                                                                                                                       |
+| ------------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| access_token  | REQUIRED               | The access token issued by the `Authorization Server`                                                                                                                                                                                                                                             |
+| token_type    | REQUIRED               | The type of the access token issued. Value is case insensitive.                                                                                                                                                                                                                                   |
+| expires_in    | RECOMMENDED            | A JSON number that represents the lifetime in seconds of the access token. For example, the value 3600 denotes that the access token will expire in one hour from the time the response was generated.                                                                                            |
+| scope         | RECOMMENDED / REQUIRED | Recommended if identical to the scope requested by the `client`, required otherwise                                                                                                                                                                                                               |
+| refresh_token | OPTIONAL               | A string representing the the authorization granted to the `client` by the `Resource Owner`, opaque to the `client`, which can be used to obtain new access tokens. It may be an identifier used to retrieve the authorization information or may encode this information into the string itself. |
 
 The parameters are serialized into a JSON structure as described in Appendix C.3.
 
@@ -104,6 +104,11 @@ The `Authorization Server` sends a response with the following parameters in the
 
 The response must use the `application/json` media type as defined in Appendix C.3 and an `HTTP 400 (Bad Request)` status code (unless specified otherwise).
 
+> [!NOTE]
+>
+> - Values for the `error` and `error_description` parameters **MUST NOT** include characters outside the set `%x20-21 / %x23-5B / %x5D-7E`.
+> - Values for the `error_uri` parameter **MUST NOT** include characters outside the set `%x21 / %x23-5B / %x5D-7E`.
+
 ### Error Codes
 
 | Error Code             | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
@@ -114,11 +119,6 @@ The response must use the `application/json` media type as defined in Appendix C
 | unauthorized_client    | The authenticated `client` is not authorized to use this authorization grant type.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | unsupported_grant_type | The authorization grant type is not supported by the `Authorization Server`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | invalid_scope          | The requested scope is invalid, unknown, malformed, or exceeds the scope granted by the `Resource Owner`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-
-> [!NOTE]
->
-> - Values for the `error` and `error_description` parameters **MUST NOT** include characters outside the set `%x20-21 / %x23-5B / %x5D-7E`.
-> - Values for the `error_uri` parameter **MUST NOT** include characters outside the set `%x21 / %x23-5B / %x5D-7E`.
 
 For example:
 

@@ -42,7 +42,7 @@ type ClientRequest = {
 	clientSecret: string;
 };
 
-type Grant = "authorization_code" | "refresh_token" | "client_credentials";
+type GrantType = "authorization_code" | "refresh_token" | "client_credentials";
 
 /**
  * A string representing an authorization issued to the client that allows it to access specific protected resources.
@@ -107,6 +107,11 @@ type Scope = string;
  * A 'sender-constrained' access token binds its use to a specific sender. The sender is obliged to demonstrate
  * knowledge of a certain secret as a prerequisite for the acceptance of that access token at the recipient (e.g. a
  * `Resource Server`).
+ *
+ * Notes:
+ * - `Authorization Servers` and `Resource Servers` **SHOULD** use mechanisms for sender constraining access tokens
+ * such as DPoP [RFC 9449], or mTLS [RFC 8705]
+ * - It is RECOMMENDED to use end-to-end TLS between the client and the `Resource Server`.
  */
 type AccessTokenType = "limited_scope" | "bearer" | "sender_constrained";
 
@@ -133,7 +138,7 @@ type TokenRequest = {
 	/**
 	 * The grant type determines the further parameters required or supported by the token request
 	 */
-	grantType: Grant;
+	grantType: GrantType;
 	/**
 	 * The client ID is needed when a form of client authentication that relies on it is used, or the grant type requires
 	 * identification of public clients.
@@ -168,7 +173,7 @@ type TokenSuccessResponse = {
 	/**
 	 * The type of the access token issued. Value is case insensitive.
 	 */
-	tokenType: "some_type"; // value is case insensitive
+	tokenType: AccessTokenType;
 	/**
 	 * The lifetime of the access token in seconds. For example, the value `3600` denotes that the access token will
 	 * expire in one hour from the time the response was generated.

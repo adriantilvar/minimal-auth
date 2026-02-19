@@ -2,11 +2,10 @@
 
 The **authorization endpoint** is used to interact with the `Resource Owner` and obtain an _authorization grant_.
 
-> [!NOTE]
-> The way in which the `Authorization Server` authenticates the `Resource Owner` (e.g. username and password login, passkey, or by using established session) is beyond the scope of OAuth.
-
 > [!IMPORTANT]
 > The `Authorization Server` must first authenticate the `Resource Owner`.
+
+The way in which the `Authorization Server` authenticates the `Resource Owner` (e.g. username and password login, passkey, or by using established session) is beyond the scope of OAuth.
 
 The authorization endpoint URL **MUST NOT** include a fragment component. It **MAY** include a query string component, which **MUST** be retained when adding additional query parameters.
 
