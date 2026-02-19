@@ -29,9 +29,9 @@ Though beyond the scope of this spec, an example includes a private key used to 
 
 If the `grant_type` with a value of `client_credentials` is identified at the `/token` endpoint, the following additional token request parameters (beyond Section 3.2.2) are supported:
 
-| Parameter | Optionality | Description                      |
-| --------- | ----------- | -------------------------------- |
-| scope     | OPTIONAL    | The scope of the access request. |
+| Parameter | Optionality | Description                                                                                                                                                                            |
+| --------- | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| scope     | OPTIONAL    | The scope of the access, expressed as a list of space-delimited, case-sensitive strings. If the value contains multiple spaced-delimited strings, their order does not matter request. |
 
 For example, the `client` makes the following HTTP request using TLS (with extra line breaks for display purposes only):
 

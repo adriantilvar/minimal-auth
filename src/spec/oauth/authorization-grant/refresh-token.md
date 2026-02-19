@@ -74,10 +74,12 @@ The `Authorization Server` **MUST** also verify the binding between the refresh 
 
 If the `grant_type` with a value of `refresh_token` is identified at the `/token` endpoint, the following additional token request parameters (beyond Section 3.2.2) are supported:
 
-| Parameter     | Optionality | Description                                                                                                                                                                                                                     |
-| ------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| refresh_token | REQUIRED    | The refresh token issued to the `client`.                                                                                                                                                                                       |
-| scope         | OPTIONAL    | The scope of the access request. The requested scope **MUST NOT** include any scope not originally granted by the `Resource Owner`, and if omitted is treated as equal to the scope originally granted by the `Resource Owner`. |
+| Parameter     | Optionality | Description                                                                                                                                                                            |
+| ------------- | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| refresh_token | REQUIRED    | The refresh token issued to the `client`.                                                                                                                                              |
+| scope         | OPTIONAL    | The scope of the access, expressed as a list of space-delimited, case-sensitive strings. If the value contains multiple spaced-delimited strings, their order does not matter request. |
+
+The requested scope **MUST NOT** include any scope not originally granted by the `Resource Owner`, and if omitted is treated as equal to the scope originally granted by the `Resource Owner`.
 
 For example, the `client` makes the following HTTP request using TLS (with extra line breaks for display purposes only):
 

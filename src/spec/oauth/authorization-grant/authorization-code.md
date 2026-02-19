@@ -73,7 +73,7 @@ The `client` builds the authorization request URI by adding the following parame
 | code_challenge        | REQUIRED    | Code challenge derived from the code verifier. It can be omitted only if specific requirements are met (Section 7.5.1).                                                                       |
 | code_challenge_method | OPTIONAL    | Code verifier transformation method is `'S256'` or `'plain'`. Defaults to `'plain'`.                                                                                                          |
 | redirect_uri          | OPTIONAL    | The redirect URI registered for this `client`. If multiple redirect URIs are registered for this `client`, it is **required**.                                                                |
-| scope                 | OPTIONAL    | The scope of the access request.                                                                                                                                                              |
+| scope                 | OPTIONAL    | The scope of the access, expressed as a list of space-delimited, case-sensitive strings. If the value contains multiple spaced-delimited strings, their order does not matter request.        |
 | state                 | OPTIONAL    | An opaque value used by the `client` to maintain state between the request and callback. The `Authorization Server` includes this value when redirecting the user agent back to the `client`. |
 
 > [!Warning]
