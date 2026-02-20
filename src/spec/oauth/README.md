@@ -163,6 +163,12 @@ The OAuth spec has been designed around the following _client profiles_:
 
 - `"native application"`: A `client` installed and executed on a device used by the `Resource Owner`. Protocol data and credentials are accessible to the `Resource Owner`. It is assumed that any client authentication credentials included in the app can be extracted. If such applications wish to use client credentials, it is recommended to utilize the back-end for front-end pattern, or issue the credentials at runtime using Dynamic Client Registration [RFC7591].
 
+ When the `Resource Owner` is the end user, the user will interact with the `client`.  
+ 
+ When the `client` is a web-based application, the user will interact with the `client` through a user agent (as described in Section 3.5 of [RFC9110]).  
+ 
+ When the `client` is a native application, the user will interact with the `client` directly through the operating system.
+
 ### Client Identifier
 
 Every `client` is identified in the context of an `Authorization Server` by a _client identifier_ (`client_id`)-- a unique, opaque string representing the registration info provided by the `client`.
