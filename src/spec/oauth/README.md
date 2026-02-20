@@ -241,8 +241,7 @@ To support confidential clients in possession of a client secret, the `Authoriza
 | client_id     | REQUIRED    | The client identifier issued to the client during the registration process |
 | client_secret | REQUIRED    | The client secret.                                                         |
 
-! [!IMPORTANT]
-
+> [!IMPORTANT]
 > The parameters can only be transmitted in the request content and MUST NOT be included in the request URI.
 
 This is also known as `client_secret_post` as defined in Section 2 of [RFC7591].
