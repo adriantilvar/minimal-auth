@@ -11,11 +11,10 @@ The `/authorization` endpoint URL **MUST NOT** include a fragment component. It 
 
 The `Authorization Server` **MUST** support the use of the HTTP `GET` method (Section 9.3.1 of [RFC9110]) for the authorization endpoint and **MAY** support the `POST` method (Section 9.3.3 of [RFC9110]) as well.
 
-The `Authorization Server` **MUST** ignore unrecognized request parameters sent to the authorization endpoint.
-
-Request and response parameters **MUST NOT** be included more than once.
-
-Parameters sent without a value **MUST** be treated as if they were omitted from the request.
+> [!NOTE]
+> - The `Authorization Server` **MUST** ignore unrecognized request parameters.
+> - Request and response parameters **MUST NOT** be included more than once.
+> - Parameters sent without a value **MUST** be treated as if they were omitted from the request.
 
 An `Authorization Server` that redirects a request potentially containing user credentials **MUST** avoid forwarding these user credentials accidentally (see Section 7.5.4 for details).
 
