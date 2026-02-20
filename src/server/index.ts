@@ -1,6 +1,6 @@
 import { Hono } from "hono";
-import authorization from "./authorization/route.js";
-import token from "./token/route.js";
+import authorization from "./authorization.js";
+import token from "./token.js";
 
 const app = new Hono();
 
