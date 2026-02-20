@@ -147,10 +147,13 @@ Client types are defined based on their ability to authenticate securely with th
 - `"confidential"`: clients that have credentials with the `Authorization Server`
 - `"public"`: clients without credentials
 
-Client authentication allows an `Authorization Server` to ensure it's interacting with a certain `client` (identified by its `client_id`) in an OAuth flow.
-
 > [!NOTE]
 > A single `client_id` **SHOULD NOT** be treated as more than one type of client.
+
+Client authentication allows an `Authorization Server` to ensure it's interacting with a certain `client` (identified by its `client_id`) in an OAuth flow. Whether and how an `Authorization Server` validates the identity of a client or the party providing/operating this client is out of scope of this spec. 
+
+> [!TIP]
+> An `Authorization Server` can either directly authenticate the `client` if it's a confidential client, or through other means if it's a public client.
 
 The OAuth spec has been designed around the following _client profiles_:
 
