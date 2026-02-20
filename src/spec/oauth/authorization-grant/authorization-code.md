@@ -185,6 +185,7 @@ If the `grant_type` with a value of `authorization_code` is identified at the `/
 | Parameter     | Optionality | Description                                                                                                                                                          |
 | ------------- | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | code          | REQUIRED    | The authorization code received from the `Authorization Server`.                                                                                                     |
+| redirect_uri | REQUIRED | The same redirect URI that was provided in the associated authorization request. Although not necessary in OAuth 2.1, it is enforced for backwards compatibility with OAuth 2.0 |
 | code_verifier | OPTIONAL    | The original code verifier string. **MUST** be included if the `code_challenge` parameter was included in the authorization request; **MUST NOT** be used otherwise. |
 | client_id     | OPTIONAL    | REQUIRED if the `client` is not authenticating with the `Authorization Server` as described in Section 3.2.1.                                                        |
 
