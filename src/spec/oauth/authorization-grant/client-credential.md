@@ -25,6 +25,10 @@ Though beyond the scope of this spec, an example includes a private key used to 
 
 (2) The `Authorization Server` authenticates the `client`, and if valid, issues an access token.
 
+## Authorization Request
+
+Since the client authentication is used as the authorization grant, no additional authorization request is needed.
+
 ## Token Endpoint Extension
 
 If the `grant_type` with a value of `client_credentials` is identified at the `/token` endpoint, the following additional token request parameters (beyond Section 3.2.2) are supported:
