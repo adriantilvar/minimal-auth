@@ -1,18 +1,68 @@
-import * as ErrorCodes from "../../lib/errors/authorization.js";
-import type {
-	AuthorizationCodeRecord,
-	CodeChallengeMethod,
-	OAuthClient,
-	Permission,
-	PermissionName,
-} from "../../lib/types.js";
+import * as ErrorCodes from "../../../src/lib/errors/authorization.js";
+import type { AuthorizationCodeRecord, CodeChallengeMethod, Permission, PermissionName } from "../../lib/types.js";
+
+// function createServerFn(_opts?: { method: "GET" }) {
+// 	return {
+// 		handler: (_fn: () => boolean) => {},
+// 	};
+// }
+
+// const authorizationGuard = createMiddleware().server(() => {
+// 	//...
+// });
+
+// Validating the request before routing it to /authorize
+// const isValidRequest = createServerFn({ method: "GET" }).handler(() => {
+// 	return false;
+// });
+//
+
+function useRouter() {
+	return {
+		navigate: (_: unknown) => {},
+	};
+}
 
 /**
  * Suggestions:
  * - add rate limiting
  */
 export const Route = createFileRoute("/authorize")({
+	// 1. We validate the search params (from the query string)
+	validateSearch: (search: Record<string, unknown>) => {
+		// const response_type = getUniqueQuery(ctx.req, "response_type");
+
+		if (!search.response_type) {
+			throw new Error(
+				"Request URI must include a `response_type` query parameter. It must not be included more than once.",
+			);
+		}
+
+		// validate and parse the search params into a typed state
+		return {
+			page: Number(search?.page ?? 1),
+			filter: (search.filter as string) || "",
+			sort: (search.sort as ProductSearchSortOptions) || "newest",
+		};
+	},
+	// If `validateSearch` throws and error, `errorComponent` will be rendered instead of `component`
+	errorComponent: ({ error }) => {
+		// 2. Here we can handle the search param error however we'd like
+		const router = useRouter();
+
+		return (
+			<div className="error">
+				<h2>Invalid Authorization Request</h2>
+				<p>{error.message}</p>
+				<button type="button" onClick={() => router.navigate({ to: "/invalid-authorization-request" })}>
+					Read more
+				</button>
+			</div>
+		);
+	},
 	beforeLoad: async ({ context, search, location }) => {
+		// 1. We validate the request
+
 		// 1. The user must be authenticated to access this route
 		if (!context.auth.isAuthenticated) {
 			throw redirect({
@@ -39,8 +89,8 @@ export const Route = createFileRoute("/authorize")({
 		}
 
 		// 3. Check if the requested scope is valid
-		if (!isValidScope(search.scope, search.client_id)) {
-			failure_uri.searchParams.set("error", AuthorizationErrorCodes.INVALID_SCOPE);
+		if (!isValidScope(search.scope)) {
+			failure_uri.searchParams.set("error", ErrorCodes.INVALID_SCOPE);
 			failure_uri.searchParams.set("error_description", "The provided `scope` is not valid");
 
 			throw Route.redirect({ to: failure_uri.toString() });
@@ -60,19 +110,10 @@ export const Route = createFileRoute("/authorize")({
  * ```
  */
 export default function AuthorizationCodePage() {
-	const {
-		client_id,
-		code_challenge,
-		code_challenge_method = "plain",
-		redirect_uri,
-		scope,
-		state,
-	} = Route.useSearch();
+	const { client_id, code_challenge, code_challenge_method = "plain", redirect_uri, scope, state } = Route.useSearch();
 
 	const permissions: Permission[] = getPermissions(scope);
-	const selectedPermissions = new Set<PermissionName>(
-		permissions.map((p) => p.name),
-	);
+	const selectedPermissions = new Set<PermissionName>(permissions.map((p) => p.name));
 
 	function togglePermission(permission: PermissionName) {
 		if (selectedPermissions.has(permission)) {
@@ -144,7 +185,7 @@ export default function AuthorizationCodePage() {
 						const failure_uri = new URL(redirect_uri);
 						failure_uri.searchParams.set("iss", AUTHORIZATION_SERVER_ID);
 
-						failure_uri.searchParams.set("error", AuthorizationErrorCodes.ACCESS_DENIED);
+						failure_uri.searchParams.set("error", ErrorCodes.ACCESS_DENIED);
 						failure_uri.searchParams.set(
 							"error_description",
 							"The resource owner has denied the authorization code request",
@@ -182,7 +223,8 @@ function generateCode(): string {
 
 function registerAuthorizationCode(_record: AuthorizationCodeRecord): void {
 	/**
-	 * Authorization Server MUST bind the authorization code to the client_id, code_challenge, code_challenge_method, and redirect_uri (and user agent!)
+	 * Authorization Server MUST bind the authorization code to the client_id, code_challenge, code_challenge_method, and
+	 * redirect_uri
 	 *
 	 * Because the Authorization Server will not include the scope aggreed upon by the Resource Owner, we bind it to the
 	 * authorization code registrtion, and we inform the client at the moment the access token is issued
@@ -211,7 +253,6 @@ type BeforeLoadArgs = {
 	context: {
 		auth: {
 			isAuthenticated: false;
-			client: OAuthClient;
 		};
 	};
 	search: {

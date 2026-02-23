@@ -54,8 +54,7 @@ type OAuthVersion = "2.0" | "2.1";
 
 export type GrantType = "authorization_code" | "refresh_token" | "client_credentials";
 
-// The 'plain' literal is considered a security vulnerability and therefore is not supported
-export type CodeChallengeMethod = "S256";
+export type CodeChallengeMethod = "plain" | "S256";
 
 /**
  * The `Authorization Server` and `Resource Server` can use the scope mechanism to limit what type of resources or

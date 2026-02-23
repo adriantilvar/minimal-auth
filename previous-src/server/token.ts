@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { type TokenErrorCode, TokenErrorCodes } from "../lib/errors/oauth.js";
+import { type TokenErrorCode, TokenErrorCodes } from "../../src/lib/errors/oauth.js";
 import type {
 	AccessTokenType,
 	AuthorizationCodeRecord,

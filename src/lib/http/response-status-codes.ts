@@ -54,7 +54,10 @@ export const TOO_EARLY = { code: 425, name: "Too Early" } as const;
 export const UPGRADE_REQUIRED = { code: 426, name: "Upgrade Required" } as const;
 export const PRECONDITION_REQUIRED = { code: 428, name: "Precondition Required" } as const;
 export const TOO_MANY_REQUESTS = { code: 429, name: "Too Many Requests" } as const;
-export const REQUEST_HEADER_FIELDS_TOO_LARGE = { code: 431, name: "Request Header Fields Too Large" } as const;
+export const REQUEST_HEADER_FIELDS_TOO_LARGE = {
+	code: 431,
+	name: "Request Header Fields Too Large",
+} as const;
 export const UNAVAILABLE_FOR_LEGAL_REASONS = { code: 451, name: "Unavailable For Legal Reasons" } as const;
 
 // 5xx: Server Error
@@ -68,4 +71,7 @@ export const VARIANT_ALSO_NEGOTIATES = { code: 506, name: "Variant Also Negotiat
 export const INSUFFICIENT_STORAGE = { code: 507, name: "Insufficient Storage" } as const;
 export const LOOP_DETECTED = { code: 508, name: "Loop Detected" } as const;
 export const NOT_EXTENDED = { code: 510, name: "Not Extended" } as const;
-export const NETWORK_AUTHENTICATION_REQUIRED = { code: 511, name: "Network Authentication Required" } as const;
+export const NETWORK_AUTHENTICATION_REQUIRED = {
+	code: 511,
+	name: "Network Authentication Required",
+} as const;
