@@ -7,7 +7,8 @@
  */
 export type ClientType = "confidential" | "public";
 
-export type ClientRegistration = {
+// Similar to Better-Auth -> https://github.com/better-auth/better-auth/blob/6f545cad26bd9451c67339cea67fe035e859faa0/packages/oauth-provider/src/types/oauth.ts#L262)
+export type OAuthClient = {
 	type: ClientType;
 	/**
 	 * Represents the registration info provided by the client and it is used to identify it in the context of an
@@ -29,7 +30,7 @@ export type ClientRegistration = {
 	 * query parameters
 	 * - A redirect URI  **MUST NOT** include a fragment component
 	 */
-	redirectUri: string | string[]; // TODO: enforce absolute URI
+	redirectUris: string[]; // TODO: enforce absolute URI
 	/**
 	 * Currently, S256 is the only method that does not expose the code verifier in the authorization request. If the
 	 * client is capable of using S256, it MUST use it, as S256 is Mandatory To Implement (MTI) on the server.
@@ -47,12 +48,11 @@ export type ClientRegistration = {
 	allowedGrantTypes: GrantType[];
 };
 
+export type OAuthProvider = string;
+
 type OAuthVersion = "2.0" | "2.1";
 
-export type GrantType =
-	| "authorization_code"
-	| "refresh_token"
-	| "client_credentials";
+export type GrantType = "authorization_code" | "refresh_token" | "client_credentials";
 
 export type CodeChallengeMethod = "plain" | "S256";
 
@@ -82,11 +82,30 @@ export type AuthorizationCodeRecord = {
 	scope: string;
 	expiresAt: number; // seconds
 	clientId: string;
+	userAgent: string;
 	redirectUri: string;
 	codeChallenge: string;
 	codeChallengeMethod: CodeChallengeMethod;
 	isUsed: boolean;
 };
+
+export type ClientAccessRecord = {
+	clientId: string;
+	scope: Scope;
+	providerId: string;
+	tokenType: AccessTokenType;
+	accessToken: AccessToken;
+	accessTokenExpiresAt: number;
+} & (
+	| {
+			refreshToken?: undefined;
+			refreshTokenExpiresAt?: undefined;
+	  }
+	| {
+			refreshToken: string;
+			refreshTokenExpiresAt: number;
+	  }
+);
 
 /**
  * ## Limited-Scope Access Token
