@@ -108,6 +108,7 @@ export type ClientAccessRecord = {
 );
 
 /**
+ *
  * ## Limited-Scope Access Token
  *
  * A 'limited-scope' access token is intended to be issued to `clients` with less privileges than the user granted the
@@ -152,6 +153,8 @@ export type AccessTokenType = "limited_scope" | "bearer" | "sender_constrained";
 
 /**
  * A string representing an authorization issued to the client that allows it to access specific protected resources.
+ * They are usually JWTs and contain a payload in JSON format. They are short-lived and usually expire after a few
+ * minutes.
  *
  * The `Resource Server` may use the token to retrieve authorization info, or the token may self-contain the
  * authorization info in a verifiable manner (i.e. a token string consisting of a signed data payload).

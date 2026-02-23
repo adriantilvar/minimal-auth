@@ -1,4 +1,4 @@
-import { AuthorizationErrorCodes } from "../../lib/errors/oauth.js";
+import * as ErrorCodes from "../../lib/errors/authorization.js";
 import type {
 	AuthorizationCodeRecord,
 	CodeChallengeMethod,
@@ -8,10 +8,8 @@ import type {
 } from "../../lib/types.js";
 
 /**
- * URL Validation:
- * - MUST include the mandatory search params-- `response_type` (='code'),
- * `client_id`, `code_challenge`, `code_challenge_method`, and `redirect_uri`
- * - There are no duplicate search params
+ * Suggestions:
+ * - add rate limiting
  */
 export const Route = createFileRoute("/authorize")({
 	beforeLoad: async ({ context, search, location }) => {
@@ -24,15 +22,14 @@ export const Route = createFileRoute("/authorize")({
 			});
 		}
 
-		// After login, the user is redirected back here, where the client info should be available
-		const client: OAuthClient = context.auth.client;
+		// After login, the user is redirected back here
 
 		const failure_uri = new URL(search.redirect_uri);
 		failure_uri.searchParams.set("iss", AUTHORIZATION_SERVER_ID);
 
 		// 2. Check if this user is allowed to request an authorization code
 		if (!canRequestAuthorizationCode(search.client_id)) {
-			failure_uri.searchParams.set("error", AuthorizationErrorCodes.UNAUTHORIZED_CLIENT);
+			failure_uri.searchParams.set("error", ErrorCodes.UNAUTHORIZED_CLIENT);
 			failure_uri.searchParams.set(
 				"error_description",
 				"This client is not authorized to request an authorization code",
@@ -63,10 +60,19 @@ export const Route = createFileRoute("/authorize")({
  * ```
  */
 export default function AuthorizationCodePage() {
-	const { client_id, code_challenge, code_challenge_method = "plain", redirect_uri, scope, state } = Route.useSearch();
+	const {
+		client_id,
+		code_challenge,
+		code_challenge_method = "plain",
+		redirect_uri,
+		scope,
+		state,
+	} = Route.useSearch();
 
 	const permissions: Permission[] = getPermissions(scope);
-	const selectedPermissions = new Set<PermissionName>(permissions.map((p) => p.name));
+	const selectedPermissions = new Set<PermissionName>(
+		permissions.map((p) => p.name),
+	);
 
 	function togglePermission(permission: PermissionName) {
 		if (selectedPermissions.has(permission)) {
@@ -79,7 +85,7 @@ export default function AuthorizationCodePage() {
 			<h2>Authorize Application</h2>
 
 			<AuthorizationForm
-				onSubmit={async () => {
+				onSubmit={() => {
 					// The Resource Owner (user) has granted some permissions
 
 					// 5. Get the granular scope approved by the Resource Owner (user)
@@ -89,32 +95,16 @@ export default function AuthorizationCodePage() {
 					const code = generateCode();
 
 					// 7.  Store the code, so that it can be verified when the client requests an access token
-					try {
-						await registerAuthorizationCode({
-							code,
-							scope: approvedScope,
-							clientId: client_id,
-							userAgent: getUserAgent(),
-							redirectUri: redirect_uri,
-							codeChallenge: code_challenge,
-							codeChallengeMethod: code_challenge_method as CodeChallengeMethod,
-							isUsed: false, // only one access token MUST be generated for this code
-							expiresAt: Date.now() + AUTHORIZATION_CODE_LIFETIME_S,
-						});
-					} catch (_) {
-						const failure_uri = new URL(redirect_uri);
-						failure_uri.searchParams.set("iss", AUTHORIZATION_SERVER_ID);
-						failure_uri.searchParams.set(
-							"error",
-							AuthorizationErrorCodes.SERVER_ERROR, // or AuthorizationErrorCodes.TEMPORARILY_UNAVAILABLE
-						);
-						failure_uri.searchParams.set(
-							"error_description",
-							"An unexpected condition prevented fulfilling the request.",
-						);
-
-						throw Route.redirect({ to: failure_uri.toString() });
-					}
+					registerAuthorizationCode({
+						code,
+						scope: approvedScope,
+						clientId: client_id,
+						redirectUri: redirect_uri,
+						codeChallenge: code_challenge,
+						codeChallengeMethod: code_challenge_method as CodeChallengeMethod,
+						isUsed: false, // only one access token MUST be generated for this code
+						expiresAt: Date.now() + 10 * 60 * 1000, // 10 minutes from now
+					});
 
 					const success_uri = new URL(redirect_uri);
 					success_uri.searchParams.set("iss", AUTHORIZATION_SERVER_ID);
@@ -184,19 +174,13 @@ function Checkbox(_props: Record<string, unknown>) {
 // Functionality Mock
 const AUTHORIZATION_SERVER_ID = "https://auth.example.com";
 
-const AUTHORIZATION_CODE_LIFETIME_S = 10 * 60 * 1000; // 10 minutes (RECOMMENDED)
-
-function getUserAgent(): string {
-	return "some_chromium_flavor";
-}
-
 function generateCode(): string {
 	// bound to the client_id, code_challenge, and redirect_uri.
 	// The code_challenge and code_challenge_method values may be stored in encrypted form in the code itself
 	return "secure_code";
 }
 
-async function registerAuthorizationCode(_record: AuthorizationCodeRecord): Promise<void> {
+function registerAuthorizationCode(_record: AuthorizationCodeRecord): void {
 	/**
 	 * Authorization Server MUST bind the authorization code to the client_id, code_challenge, code_challenge_method, and redirect_uri (and user agent!)
 	 *
@@ -210,7 +194,7 @@ async function registerAuthorizationCode(_record: AuthorizationCodeRecord): Prom
 	 */
 }
 
-function isValidScope(_scope: string | undefined, _clientId: string): boolean {
+function isValidScope(_scope: string | undefined): boolean {
 	return true;
 }
 
@@ -241,7 +225,13 @@ type BeforeLoadArgs = {
 };
 
 function createFileRoute(path: string) {
-	return (options: { beforeLoad?: (args: BeforeLoadArgs) => unknown | Promise<unknown>; component: unknown }) => ({
+	return (options: {
+		server?: unknown;
+		validateSearch?: unknown;
+		errorComponent?: (_: { error: Error }) => unknown;
+		beforeLoad?: (args: BeforeLoadArgs) => unknown | Promise<unknown>;
+		component: unknown;
+	}) => ({
 		path,
 		...options,
 		useSearch() {
