@@ -9,18 +9,19 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as AuthorizationFailureRouteImport } from './routes/authorization-failure'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as LoginIndexRouteImport } from './routes/login/index'
 import { Route as AuthorizeIndexRouteImport } from './routes/authorize/index'
+import { Route as ErrorAuthorizationFailureRouteImport } from './routes/error/authorization-failure'
 
-const AuthorizationFailureRoute = AuthorizationFailureRouteImport.update({
-  id: '/authorization-failure',
-  path: '/authorization-failure',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginIndexRoute = LoginIndexRouteImport.update({
+  id: '/login/',
+  path: '/login/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthorizeIndexRoute = AuthorizeIndexRouteImport.update({
@@ -28,51 +29,66 @@ const AuthorizeIndexRoute = AuthorizeIndexRouteImport.update({
   path: '/authorize/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ErrorAuthorizationFailureRoute =
+  ErrorAuthorizationFailureRouteImport.update({
+    id: '/error/authorization-failure',
+    path: '/error/authorization-failure',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/authorization-failure': typeof AuthorizationFailureRoute
+  '/error/authorization-failure': typeof ErrorAuthorizationFailureRoute
   '/authorize/': typeof AuthorizeIndexRoute
+  '/login/': typeof LoginIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/authorization-failure': typeof AuthorizationFailureRoute
+  '/error/authorization-failure': typeof ErrorAuthorizationFailureRoute
   '/authorize': typeof AuthorizeIndexRoute
+  '/login': typeof LoginIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/authorization-failure': typeof AuthorizationFailureRoute
+  '/error/authorization-failure': typeof ErrorAuthorizationFailureRoute
   '/authorize/': typeof AuthorizeIndexRoute
+  '/login/': typeof LoginIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/authorization-failure' | '/authorize/'
+  fullPaths: '/' | '/error/authorization-failure' | '/authorize/' | '/login/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/authorization-failure' | '/authorize'
-  id: '__root__' | '/' | '/authorization-failure' | '/authorize/'
+  to: '/' | '/error/authorization-failure' | '/authorize' | '/login'
+  id:
+    | '__root__'
+    | '/'
+    | '/error/authorization-failure'
+    | '/authorize/'
+    | '/login/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AuthorizationFailureRoute: typeof AuthorizationFailureRoute
+  ErrorAuthorizationFailureRoute: typeof ErrorAuthorizationFailureRoute
   AuthorizeIndexRoute: typeof AuthorizeIndexRoute
+  LoginIndexRoute: typeof LoginIndexRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/authorization-failure': {
-      id: '/authorization-failure'
-      path: '/authorization-failure'
-      fullPath: '/authorization-failure'
-      preLoaderRoute: typeof AuthorizationFailureRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/': {
       id: '/'
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login/': {
+      id: '/login/'
+      path: '/login'
+      fullPath: '/login/'
+      preLoaderRoute: typeof LoginIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/authorize/': {
@@ -82,13 +98,21 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthorizeIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/error/authorization-failure': {
+      id: '/error/authorization-failure'
+      path: '/error/authorization-failure'
+      fullPath: '/error/authorization-failure'
+      preLoaderRoute: typeof ErrorAuthorizationFailureRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AuthorizationFailureRoute: AuthorizationFailureRoute,
+  ErrorAuthorizationFailureRoute: ErrorAuthorizationFailureRoute,
   AuthorizeIndexRoute: AuthorizeIndexRoute,
+  LoginIndexRoute: LoginIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

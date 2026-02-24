@@ -29,7 +29,7 @@ type OAuthErrorParams = {
 	iss?: OAuthProvider;
 };
 
-export const Route = createFileRoute("/authorization-failure")({
+export const Route = createFileRoute("/error/authorization-failure")({
 	validateSearch: (search: Record<string, unknown>): OAuthErrorParams => {
 		return {
 			error: search.error,
@@ -40,12 +40,17 @@ export const Route = createFileRoute("/authorization-failure")({
 });
 
 function RouteComponent() {
-	const { error, error_description } = Route.useSearch();
+	const { error, error_description, iss } = Route.useSearch();
 
 	return (
 		<main className="error">
 			<h2>Invalid Authorization Request</h2>
 			<p>{error_description}</p>
+			{iss && (
+				<p>
+					<span className="font-semibold">Authorization Server:</span> {iss}
+				</p>
+			)}
 			<button
 				type="button"
 				// onClick={() => router.navigate({ to: "/invalid-authorization-request" })}
