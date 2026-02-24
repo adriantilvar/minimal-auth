@@ -7,6 +7,8 @@
  */
 export type ClientType = "confidential" | "public";
 
+export type TokenEndpointAuthMethod = "none" | "client_secret_post" | "client_secret_basic"
+
 // Similar to Better-Auth -> https://github.com/better-auth/better-auth/blob/6f545cad26bd9451c67339cea67fe035e859faa0/packages/oauth-provider/src/types/oauth.ts#L262)
 export type OAuthClient = {
 	type: ClientType;
@@ -18,10 +20,11 @@ export type OAuthClient = {
 	 * - It can be issued by the authorization server itself or by another party.
 	 * - It is **NOT** a secret and **MUST NOT** be used alone for client authentication.
 	 */
-	clientId: string; // TODO: AS should document the size it issues
+	client_id: string; // TODO: AS should document the size it issues
 	/**
 	 * The URI of the client that the authorization server redirects the user agent back to after completing its
-	 * interaction with the resource owner.
+	 * interaction with the resource owner. Clients using flows with redirection MUST register their redirection URI
+	* values.
 	 *
 	 * Notes:
 	 * - The authorization server **MAY** allow the client to register multiple redirect URIs
@@ -30,7 +33,23 @@ export type OAuthClient = {
 	 * query parameters
 	 * - A redirect URI  **MUST NOT** include a fragment component
 	 */
-	redirectUris: string[]; // TODO: enforce absolute URI
+  redirect_uris: string[]; // TODO: enforce absolute URI
+  /**
+   * String indicator of the requested authentication method for the token endpoint. The values defined by [RFC7591]
+   * are:
+   *
+         *  - "none": The client is a public client as defined in OAuth 2.0,
+            Section 2.1, and does not have a client secret.
+   *
+         *  - "client_secret_post": The client uses the HTTP POST parameters
+            as defined in OAuth 2.0, Section 2.3.1.
+   *
+         *  - "client_secret_basic": The client uses HTTP Basic as defined in
+            OAuth 2.0, Section 2.3.1.
+   */
+  token_endpoint_auth_method: TokenEndpointAuthMethod
+
+  // Not specified by any spec
 	/**
 	 * Currently, S256 is the only method that does not expose the code verifier in the authorization request. If the
 	 * client is capable of using S256, it MUST use it, as S256 is Mandatory To Implement (MTI) on the server.

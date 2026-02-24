@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as TokenIndexRouteImport } from './routes/token/index'
 import { Route as LoginIndexRouteImport } from './routes/login/index'
 import { Route as AuthorizeIndexRouteImport } from './routes/authorize/index'
 import { Route as ErrorAuthorizationFailureRouteImport } from './routes/error/authorization-failure'
@@ -17,6 +18,11 @@ import { Route as ErrorAuthorizationFailureRouteImport } from './routes/error/au
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TokenIndexRoute = TokenIndexRouteImport.update({
+  id: '/token/',
+  path: '/token/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginIndexRoute = LoginIndexRouteImport.update({
@@ -41,12 +47,14 @@ export interface FileRoutesByFullPath {
   '/error/authorization-failure': typeof ErrorAuthorizationFailureRoute
   '/authorize/': typeof AuthorizeIndexRoute
   '/login/': typeof LoginIndexRoute
+  '/token/': typeof TokenIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/error/authorization-failure': typeof ErrorAuthorizationFailureRoute
   '/authorize': typeof AuthorizeIndexRoute
   '/login': typeof LoginIndexRoute
+  '/token': typeof TokenIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -54,18 +62,25 @@ export interface FileRoutesById {
   '/error/authorization-failure': typeof ErrorAuthorizationFailureRoute
   '/authorize/': typeof AuthorizeIndexRoute
   '/login/': typeof LoginIndexRoute
+  '/token/': typeof TokenIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/error/authorization-failure' | '/authorize/' | '/login/'
+  fullPaths:
+    | '/'
+    | '/error/authorization-failure'
+    | '/authorize/'
+    | '/login/'
+    | '/token/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/error/authorization-failure' | '/authorize' | '/login'
+  to: '/' | '/error/authorization-failure' | '/authorize' | '/login' | '/token'
   id:
     | '__root__'
     | '/'
     | '/error/authorization-failure'
     | '/authorize/'
     | '/login/'
+    | '/token/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -73,6 +88,7 @@ export interface RootRouteChildren {
   ErrorAuthorizationFailureRoute: typeof ErrorAuthorizationFailureRoute
   AuthorizeIndexRoute: typeof AuthorizeIndexRoute
   LoginIndexRoute: typeof LoginIndexRoute
+  TokenIndexRoute: typeof TokenIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -82,6 +98,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/token/': {
+      id: '/token/'
+      path: '/token'
+      fullPath: '/token/'
+      preLoaderRoute: typeof TokenIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login/': {
@@ -113,6 +136,7 @@ const rootRouteChildren: RootRouteChildren = {
   ErrorAuthorizationFailureRoute: ErrorAuthorizationFailureRoute,
   AuthorizeIndexRoute: AuthorizeIndexRoute,
   LoginIndexRoute: LoginIndexRoute,
+  TokenIndexRoute: TokenIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

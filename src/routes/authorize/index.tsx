@@ -12,7 +12,7 @@ import type {
 } from "@/lib/types";
 import { isString } from "@/lib/utils";
 
-// NOTE: The fragment component is stripped by the server, so it cannot end up to our route
+// NOTE: The fragment component is stripped by the server, but it should also be enforced by client
 const authorizationRequestValidation = createMiddleware().server(async ({ next, request }) => {
 	const search = new URL(request.url).searchParams; // search params are always strings
 
@@ -427,7 +427,7 @@ async function findOAuthClientById(_clientId: string): Promise<OAuthClient | nul
 		redirectUris: ["http://example.com"],
 		supportsS256: true,
 		allowedGrantTypes: ["authorization_code"],
-		supportedOAuthVersions: ["2.0", "2.1"],
+		supported_oauth_versions: ["2.0", "2.1"],
 	};
 }
 
@@ -470,8 +470,10 @@ function getUserAgent() {
 }
 
 function generateCode(): string {
-	// bound to the client_id, code_challenge, and redirect_uri.
-	// The code_challenge and code_challenge_method values may be stored in encrypted form in the code itself
+	/**
+	 * The authorization code must be bound to the `client_id`, `code_challenge`, and `redirect_uri`.
+	 * The `code_challenge` and `code_challenge_method` values may be stored in encrypted form in the code itself.
+	 */
 	return "secure_code";
 }
 
