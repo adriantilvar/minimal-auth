@@ -79,7 +79,7 @@ const authorizationRequestValidation = createMiddleware().server(async ({ next, 
 	}
 
 	// The client must have passed a valid `redirect_uri`, or the client has only one registered redirect URI
-	const safeRedirectUri = redirectUri ?? client.redirectUris[0];
+	const safeRedirectUri = redirectUri ?? client.redirect_uris[0];
 
 	/**
 	 * Once we have a validated redirect URI, we can inform the client of any error by
@@ -423,10 +423,11 @@ function getUniqueSearchParam(search: URLSearchParams, paramName: string) {
 async function findOAuthClientById(_clientId: string): Promise<OAuthClient | null> {
 	return {
 		type: "confidential",
-		clientId: "4u0rfoisdjflsj",
-		redirectUris: ["http://example.com"],
-		supportsS256: true,
-		allowedGrantTypes: ["authorization_code"],
+		client_id: "4u0rfoisdjflsj",
+		redirect_uris: ["http://example.com"],
+		grant_types: ["authorization_code"],
+		response_types: ["code"],
+		token_endpoint_auth_method: "client_secret_basic",
 		supported_oauth_versions: ["2.0", "2.1"],
 	};
 }
@@ -450,7 +451,7 @@ function isValidRedirectUri(uri: string, client: OAuthClient) {
 	 * 7.3 of [RFC8252]
 	 */
 
-	return client.redirectUris.includes(uri);
+	return client.redirect_uris.includes(uri);
 }
 
 function isValidCodeChallengeMethod(method: unknown): method is CodeChallengeMethod {

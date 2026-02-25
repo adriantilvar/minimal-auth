@@ -1,7 +1,7 @@
 /**
  * Client types are defined based on their ability to authenticate securely with the authorization server:
- * - "confidential"-- clients that have credentials with the authorization server
- * - "public"-- clients without credentials
+ * - "confidential"-- clients that have credentials with the authorization server and can hold a `client_secret`
+ * - "public"-- clients without credentials and can't hold a `client_secret`
  *
  * Note: There is no requirement that an authorization server supports a particular client type.
  */
@@ -30,7 +30,18 @@ export type OAuthClient = {
 	client_id: string; // TODO: AS should document the size it issues
 
 	/**
-	 * OAuth 2.1 grant type strings that the client can use at the token endpoint.
+	 * Represents an OAuth 2.1 client secret string that the Authorization Server can optionally provide to confidential clients during the client registration process.
+	 *
+	 * Notes:
+	 * - It is used by a confidential client to authenticate to the /token endpoint.
+	 * - If issued, this MUST be unique for each "client_id" and SHOULD be unique for
+	 * multiple instances of a client using the same "client_id".
+	 */
+	client_secret?: string;
+
+	/**
+	 * OAuth 2.1 grant type strings that the client can use at the token endpoint. If not
+	 * provided, defaults to `authorization_code`.
 	 *
 	 * They are defined as:
 	 * - "authorization_code": The authorization code grant type defined in the OAuth spec
@@ -45,7 +56,7 @@ export type OAuthClient = {
 
 	/**
 	 * Array of the OAuth 2.1 response type strings that the client can
-	 * use at the authorization endpoint
+	 * use at the authorization endpoint. If not provided, defaults to `code`
 	 */
 	response_types: ResponseType[];
 
@@ -69,7 +80,8 @@ export type OAuthClient = {
 	redirect_uris: string[]; // TODO: enforce absolute URI
 
 	/**
-	 * An indicator of the requested authentication method for the token endpoint.
+	 * An indicator of the requested authentication method for the token endpoint. If not
+	 * provided, defaults to `client_secret_basic`
 	 *
 	 * The values defined by [RFC7591] are:
 	 * - "none": The client is a public client and does not have a client secret
@@ -194,7 +206,7 @@ export type OAuthClient = {
 	 * Which OAuth versions this client supports. Different versions have
 	 * slightly different implementation details.
 	 */
-	supported_oauth_versions: OAuthVersion[];
+	supported_oauth_versions: OAuthVersion[]; // NOTE: not specified by any spec
 };
 
 export type OAuthProvider = string;
