@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import type { AuthorizationErrorCode, TokenErrorCode } from "@/lib/errors/oauth";
 import type { OAuthProvider } from "@/lib/types";
 
-type OAuthErrorParams = {
+export type OAuthErrorParams = {
 	error: AuthorizationErrorCode | TokenErrorCode;
 	/**
 	 * Human-readable ASCII text providing additional information, used to assist
@@ -30,33 +30,15 @@ type OAuthErrorParams = {
 };
 
 export const Route = createFileRoute("/error/authorization-failure")({
-	validateSearch: (search: Record<string, unknown>): OAuthErrorParams => {
-		return {
-			error: search.error,
-			error_description: search.error_description,
-		}
-	},
 	component: RouteComponent,
 });
 
 function RouteComponent() {
-	const { error, error_description, iss } = Route.useSearch();
-
 	return (
 		<main className="error">
 			<h2>Invalid Authorization Request</h2>
-			<p>{error_description}</p>
-			{iss && (
-				<p>
-					<span className="font-semibold">Authorization Server:</span> {iss}
-				</p>
-			)}
-			<button
-				type="button"
-				// onClick={() => router.navigate({ to: "/invalid-authorization-request" })}
-			>
-				Read more
-			</button>
+			<p>Something went wrong while trying to authorize the client. Please restart the authorization flow.</p>
+			<button type="button">Read more</button>
 		</main>
-	)
+	);
 }

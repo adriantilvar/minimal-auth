@@ -32,7 +32,6 @@
 				"noUnusedImports": { "level": "warn", "fix": "safe" }
 			},
 			"style": {
-				"noMagicNumbers": "info",
 				"useUnifiedTypeSignatures": "info",
 				"noProcessEnv": "warn",
 				"useFilenamingConvention": {

@@ -52,6 +52,8 @@ const authorizationRequestValidation = createMiddleware().server(async ({ next, 
 		});
 	}
 
+	// TODO: Remove any code generated previously for this client
+
 	const [redirectUri] = getUniqueSearchParam(search, "redirect_uri");
 	if (!redirectUri) {
 		// NOTE: Can allow the client to omit `redirect_uri` if it has only one redirect URI registered with the AS
@@ -309,6 +311,7 @@ function AuthorizationPage() {
 		);
 	}
 
+	// This should be a server function
 	async function approveAuthorizationRequest(e: React.SubmitEvent<HTMLFormElement>) {
 		e.preventDefault();
 
@@ -320,6 +323,7 @@ function AuthorizationPage() {
 
 		// Store the code, so that it can be verified when the client requests an access token
 		await registerAuthorizationCode({
+			id: "auto_generated_id",
 			code,
 			scope: approvedScope,
 			clientId: client_id,

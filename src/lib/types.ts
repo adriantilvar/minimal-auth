@@ -13,10 +13,11 @@ export type GrantType =
 	| "refresh_token"
 	| "urn:ietf:params:oauth:grant-type:jwt-bearer"
 	| "urn:ietf:params:oauth:grant-type:saml2-bearer";
+
 export type ResponseType = "code"; // The only one supported by OAuth 2.1
+
 export type TokenEndpointAuthMethod = "none" | "client_secret_post" | "client_secret_basic";
 
-// Similar to Better-Auth -> https://github.com/better-auth/better-auth/blob/6f545cad26bd9451c67339cea67fe035e859faa0/packages/oauth-provider/src/types/oauth.ts#L262)
 export type OAuthClient = {
 	type: ClientType;
 	/**
@@ -27,7 +28,7 @@ export type OAuthClient = {
 	 * - It can be issued by the authorization server itself or by another party.
 	 * - It is **NOT** a secret and **MUST NOT** be used alone for client authentication.
 	 */
-	client_id: string; // TODO: AS should document the size it issues
+	client_id: string; // TODO: Should document the size it issues
 
 	/**
 	 * Represents an OAuth 2.1 client secret string that the Authorization Server can optionally provide to confidential clients during the client registration process.
@@ -238,9 +239,10 @@ export type Permission = {
 };
 
 export type AuthorizationCodeRecord = {
+	id: string;
 	code: string;
-	scope: Scope;
 	expiresAt: number; // seconds
+	scope: Scope;
 	clientId: string;
 	userAgent: string;
 	redirectUri: string;
@@ -250,9 +252,9 @@ export type AuthorizationCodeRecord = {
 };
 
 export type ClientAccessRecord = {
+	id: string;
 	clientId: string;
 	scope: Scope;
-	providerId: string;
 	tokenType: AccessTokenType;
 	accessToken: AccessToken;
 	accessTokenExpiresAt: number;
@@ -262,7 +264,7 @@ export type ClientAccessRecord = {
 			refreshTokenExpiresAt?: undefined;
 	  }
 	| {
-			refreshToken: string;
+			refreshToken: RefreshToken;
 			refreshTokenExpiresAt: number;
 	  }
 );
@@ -326,3 +328,5 @@ export type AccessTokenType = "limited_scope" | "bearer" | "sender_constrained";
  * - No consistent encoding or format is required, other than what is expected by the `Resource Server`
  */
 export type AccessToken = string;
+
+export type RefreshToken = string;

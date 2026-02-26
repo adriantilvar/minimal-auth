@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { getRequestHeader } from "@tanstack/react-start/server";
 import { type TokenErrorCode, TokenErrorCodes } from "@/lib/errors/oauth";
-import { BAD_REQUEST, OK, UNAUTHORIZED } from "@/lib/http/response-status-codes";
+import { BAD_REQUEST, INTERNAL_SERVER_ERROR, OK, UNAUTHORIZED } from "@/lib/http/response-status-codes";
 import type {
 	AccessToken,
 	AccessTokenType,
@@ -18,14 +18,18 @@ import type {
  *
  * Confidential clients MUST authenticate with the Authorization Server
  *
- * Since the client secret authentication method involves a password,
- * the authorization server MUST protect any endpoint utilizing it
- * against brute force attacks.
+ * For confidential clients, the authorization server MAY accept any form of
+ * client authentication meeting its security requirements (e.g., client secret,
+ * public/private key pair).
  *
  * It is RECOMMENDED to use asymmetric (public-key based) methods for client
  * authentication, such as mTLS [RFC8705] * or using signed JWTs in accordance
  *  with [RFC7521], [RFC7523], and their update [I-D.ietf-oauth-rfc7523bis]
  * (defined in [OpenID] as the client authentication method private_key_jwt).
+ *
+ * Since the client secret authentication method involves a password,
+ * the authorization server MUST protect any endpoint utilizing it
+ * against brute force attacks.
  *
  * When client authentication is not possible, the authorization server
  * SHOULD employ other means to validate the client's identity -- for
@@ -129,6 +133,19 @@ export const Route = createFileRoute("/token/")({
 					);
 				}
 
+				// We check if the client is allowed to use the grant type they provided
+				if (!canUseGrantType(grantType, client)) {
+					return Response.json(
+						{
+							error: TokenErrorCodes.UNAUTHORIZED_CLIENT,
+							error_description: "The client is not authorized to use this authorization grant type.",
+						},
+						{
+							status: BAD_REQUEST.code,
+						},
+					);
+				}
+
 				if (client.type === "public") {
 					/**
 					 * Some form of authentication should be enforced when dealing with public clients.
@@ -145,28 +162,57 @@ export const Route = createFileRoute("/token/")({
 					);
 				}
 
-				// We're only dealing with confidential clients
+				// We're only dealing with a confidential client-- we must authenticate it regardless of grant type
+
+				// We make sure the client can use either 'client_secret_basic' or 'client_secret_post'
+				if (!client.token_endpoint_auth_method || client.token_endpoint_auth_method === "none") {
+					return Response.json(
+						{
+							error: TokenErrorCodes.INVALID_CLIENT,
+							error_description:
+								"The client registration does not have a valid authentication method for the /token endpoint.",
+						},
+						{ status: UNAUTHORIZED.code },
+					);
+				}
+
+				const authorization = getRequestHeader("Authorization");
+				const clientSecret = getUniqueField(body, "client_secret")[0];
+
+				// We guard against multiple authentication methods being used at the same time
+				if (authorization && clientSecret) {
+					return Response.json(
+						{
+							error: TokenErrorCodes.INVALID_REQUEST,
+							error_description: "The request must use only one method for authenticating the client.",
+						},
+						{ status: UNAUTHORIZED.code },
+					);
+				}
+
+				const [ok, authFailure] =
+					client.token_endpoint_auth_method === "client_secret_basic"
+						? authenticateWithClientSecretBasic(client, authorization)
+						: authenticateWithClientSecretPost(client, clientSecret);
+
+				if (!ok) {
+					return Response.json(
+						{
+							error: authFailure.error,
+							error_description: authFailure.error_description,
+						},
+						authFailure.responseInit,
+					);
+				}
 
 				/**
-				 * This grant type represents access on behalf of an end-user (user-to-machine).
+				 * This grant type represents access on behalf of the client itself (machine-to-machine).
 				 *
-				 * It can be used by both public and confidential clients.
+				 * It can be used only by confidential clients
 				 */
-				if (grantType === "authorization_code") {
-					// We must first authenticate the client
-					const [ok, authFailure] = authenticateClient(client, body);
-					if (!ok) {
-						return Response.json(
-							{
-								error: authFailure.error,
-								error_description: authFailure.error_description,
-							},
-							authFailure.responseInit,
-						);
-					}
-
-					// After we authenticate the client, we check if they are allowed to use this grant type
-					if (!canUseGrantType(grantType, client)) {
+				if (grantType === "client_credentials") {
+					// Additional guard to ensure only condifential clients use it
+					if (client.type !== "confidential") {
 						return Response.json(
 							{
 								error: TokenErrorCodes.UNAUTHORIZED_CLIENT,
@@ -178,7 +224,133 @@ export const Route = createFileRoute("/token/")({
 						);
 					}
 
-					// Not strictly necessary in OAuth 2.1 if the client has registered only one redirect URI
+					// The Authorization Server can ignore the scope entirely, but if present, we must validate it
+					const [requestScope, scopeError] = getUniqueField(body, "scope");
+					if (scopeError?.reason === "duplicate_param") {
+						return Response.json(
+							{
+								error: TokenErrorCodes.INVALID_REQUEST,
+								error_description:
+									"The `scope` query parameter is optional. However, if provided, it must have a valid value and it must not be included more than once.",
+							},
+							{
+								status: BAD_REQUEST.code,
+							},
+						);
+					}
+
+					if (requestScope && !isScopeWithin(requestScope, client.scope)) {
+						return Response.json(
+							{
+								error: TokenErrorCodes.INVALID_REQUEST,
+								error_description: "The provided `scope` is not within the allowed scope for this client.",
+							},
+							{
+								status: BAD_REQUEST.code,
+							},
+						);
+					}
+
+					// Success! We can generate the tokens
+					const scope = requestScope ?? client.scope; // server must enforce default scope on client registration
+					const token_type: AccessTokenType = "bearer";
+					// TODO: Must handle the registration function failing
+					const { accessToken, accessTokenExpiresAt, refreshToken } = await registerClientAccess({
+						clientId,
+						scope,
+						tokenType: token_type,
+					});
+
+					return Response.json(
+						{
+							scope,
+							access_token: accessToken,
+							token_type,
+							expires_in: remainingSecondsUntilTimestamp(accessTokenExpiresAt),
+							refresh_token: refreshToken,
+						},
+						{
+							status: OK.code,
+							headers: {
+								"Cache-Control": "no-store",
+							},
+						},
+					);
+				}
+
+				// TODO: ensure in authorization request old codes get removed
+
+				/**
+				 * This grant type represents access on behalf of an end-user (user-to-machine).
+				 *
+				 * It can be used by both public and confidential clients.
+				 */
+				if (grantType === "authorization_code") {
+					// We must ensure the client uses PKCE
+					const [code] = getUniqueField(body, "code");
+					if (!code) {
+						return Response.json(
+							{
+								error: TokenErrorCodes.INVALID_REQUEST,
+								error_description:
+									"The request content must include a `code` parameter. It must not be included more than once.",
+							},
+							{
+								status: BAD_REQUEST.code,
+							},
+						);
+					}
+
+					// We check that there is an authorization code for the client (server ensures only one exists at a time)
+					const codeRecord = await findAuthorizationCodeByClientId(clientId);
+					if (!codeRecord) {
+						return Response.json(
+							{
+								error: TokenErrorCodes.INVALID_GRANT,
+								error_description:
+									"No record was found for the provided `code`. The code is either incorrect or it has been revoked.",
+							},
+							{
+								status: BAD_REQUEST.code,
+							},
+						);
+					}
+
+					// We make sure it wasn't used before
+					if (codeRecord.isUsed) {
+						// We revoke all access and refresh tokens previously issued based on that authorization code
+						await revokeTokensForCode(code);
+
+						return Response.json(
+							{
+								error: TokenErrorCodes.INVALID_GRANT,
+								error_description:
+									"The provided `code` has already been used. All tokens previously issued for it are now revoked.",
+							},
+							{
+								status: BAD_REQUEST.code,
+							},
+						);
+					}
+
+					// We make sure it's not expired
+					if (isExpiredTimestamp(codeRecord.expiresAt)) {
+						// If it expired without having been used before, we just remove it
+						await deleteAuthorizationCode(codeRecord.id);
+
+						return Response.json(
+							{
+								error: TokenErrorCodes.INVALID_GRANT,
+								error_description:
+									"The provided `code` has expired. You need to start a new authorization flow.",
+							},
+							{
+								status: BAD_REQUEST.code,
+							},
+						);
+					}
+
+					// Providing the `redirect_uri` is not strictly necessary in OAuth 2.1
 					// However, it can be enforced for backwards compatibility with OAuth 2.0
 					const [redirectUri] = getUniqueField(body, "code");
 					if (!redirectUri) {
@@ -194,89 +366,13 @@ export const Route = createFileRoute("/token/")({
 						);
 					}
 
-					// We check that the provided redirect URI is registered with the client
-					if (!isValidRedirectUri(redirectUri, client)) {
+					// We check that the provided redirect URI is the same as the one used for the grant request
+					if (redirectUri !== codeRecord.redirectUri) {
 						return Response.json(
 							{
 								error: TokenErrorCodes.INVALID_REQUEST,
 								error_description:
-									"The provided redirect URI is not registered for this client or is otherwise invalid.",
-							},
-							{
-								status: BAD_REQUEST.code,
-							},
-						);
-					}
-
-					// We must check that the other required parameters for this grant type are present
-
-					const [code] = getUniqueField(body, "code");
-					if (!code) {
-						return Response.json(
-							{
-								error: TokenErrorCodes.INVALID_REQUEST,
-								error_description:
-									"The request content must include a `code` parameter. It must not be included more than once.",
-							},
-							{
-								status: BAD_REQUEST.code,
-							},
-						);
-					}
-
-					// We check if the code exists in a record (matching algorithm is out of scope)
-					const authorizationCodeRecord = await findAuthorizationCodeRecordByCode(code);
-					if (!authorizationCodeRecord) {
-						return Response.json(
-							{
-								error: TokenErrorCodes.INVALID_GRANT,
-								error_description:
-									"No record was found for the provided `code`. The code is either incorrect or it has been revoked.",
-							},
-							{
-								status: BAD_REQUEST.code,
-							},
-						);
-					}
-
-					// We make sure it was issued to this client
-					if (authorizationCodeRecord.clientId !== clientId) {
-						// NOTE: Additional security measures might be taken in this case, because the code should be unique
-						return Response.json(
-							{
-								error: TokenErrorCodes.INVALID_GRANT,
-								error_description: "The provided `code` is invalid.",
-							},
-							{
-								status: BAD_REQUEST.code,
-							},
-						);
-					}
-
-					// We make sure it's not expired
-					if (isExpiredTimestamp(authorizationCodeRecord.expiresAt)) {
-						return Response.json(
-							{
-								error: TokenErrorCodes.INVALID_GRANT,
-								error_description:
-									"The provided `code` has expired. Please request another code from the authorization server.",
-							},
-							{
-								status: BAD_REQUEST.code,
-							},
-						);
-					}
-
-					// We make sure it wasn't used before
-					if (authorizationCodeRecord.isUsed) {
-						// We revoke all access and refresh tokens previously issued based on that authorization code
-						await revokeTokensForCode(code);
-
-						return Response.json(
-							{
-								error: TokenErrorCodes.INVALID_GRANT,
-								error_description:
-									"The provided `code` has already been used. All tokens previously issued for it are now revoked.",
+									"The provided redirect URI does not match the one used for the authorization code grant request.",
 							},
 							{
 								status: BAD_REQUEST.code,
@@ -299,7 +395,7 @@ export const Route = createFileRoute("/token/")({
 					}
 
 					// We validate the code verifier
-					if (!isValidCodeVerifier(codeVerifier, authorizationCodeRecord)) {
+					if (!isValidCodeVerifier(codeVerifier, codeRecord)) {
 						return Response.json(
 							{
 								error: TokenErrorCodes.INVALID_REQUEST,
@@ -312,7 +408,7 @@ export const Route = createFileRoute("/token/")({
 					}
 
 					// The Authorization Server can ignore the scope entirely, but if present, we must validate it
-					const [scope, scopeError] = getUniqueField(body, "scope");
+					const [requestScope, scopeError] = getUniqueField(body, "scope");
 					if (scopeError?.reason === "duplicate_param") {
 						return Response.json(
 							{
@@ -326,7 +422,7 @@ export const Route = createFileRoute("/token/")({
 						);
 					}
 
-					if (scope && !isScopeWithin(scope, authorizationCodeRecord.scope)) {
+					if (requestScope && !isScopeWithin(requestScope, codeRecord.scope)) {
 						return Response.json(
 							{
 								error: TokenErrorCodes.INVALID_REQUEST,
@@ -338,110 +434,20 @@ export const Route = createFileRoute("/token/")({
 						);
 					}
 
-					// Scope requested or scope authorized by the Resource Owner (client could request lesser scope)
-					const validatedScope = scope ?? authorizationCodeRecord.scope;
-
 					// Success! We can generate the tokens
+					const scope = requestScope ?? client.scope;
 					const token_type: AccessTokenType = "bearer";
 
 					// TODO: Must handle the registration function failing
 					const { accessToken, accessTokenExpiresAt, refreshToken } = await registerClientAccess({
 						clientId,
-						scope: validatedScope,
-						providerId: AUTHORIZATION_SERVER_ID,
+						scope,
 						tokenType: token_type,
 					});
 
 					return Response.json(
 						{
-							scope: validatedScope,
-							access_token: accessToken,
-							token_type,
-							expires_in: remainingSecondsUntilTimestamp(accessTokenExpiresAt),
-							refresh_token: refreshToken,
-						},
-						{
-							status: OK.code,
-							headers: {
-								"Cache-Control": "no-store",
-							},
-						},
-					);
-				}
-
-				/**
-				 * This grant type represents access on behalf of the client itself (machine-to-machine).
-				 *
-				 * It can be used only by confidential clients
-				 */
-				if (grantType === "client_credentials") {
-					const [ok, authFailure] = authenticateClient(client, body);
-					if (!ok) {
-						return Response.json(
-							{
-								error: authFailure.error,
-								error_description: authFailure.error_description,
-							},
-							authFailure.responseInit,
-						);
-					}
-
-					if (client.type !== "confidential") {
-						return Response.json(
-							{
-								error: TokenErrorCodes.UNAUTHORIZED_CLIENT,
-								error_description: "The client is not authorized to use this authorization grant type.",
-							},
-							{
-								status: BAD_REQUEST.code,
-							},
-						);
-					}
-
-					// The Authorization Server can ignore the scope entirely, but if present, we must validate it
-					const [scope, scopeError] = getUniqueField(body, "scope");
-					if (scopeError?.reason === "duplicate_param") {
-						return Response.json(
-							{
-								error: TokenErrorCodes.INVALID_REQUEST,
-								error_description:
-									"The `scope` query parameter is optional. However, if provided, it must have a valid value and it must not be included more than once.",
-							},
-							{
-								status: BAD_REQUEST.code,
-							},
-						);
-					}
-
-					if (scope && !isScopeWithin(scope, client.scope)) {
-						return Response.json(
-							{
-								error: TokenErrorCodes.INVALID_REQUEST,
-								error_description: "The provided `scope` is not valid for the authorization code.",
-							},
-							{
-								status: BAD_REQUEST.code,
-							},
-						);
-					}
-
-					// Scope requested or scope authorized by the Resource Owner (client could request lesser scope)
-					const validatedScope = scope ?? client.scope;
-
-					// Success! We can generate the tokens
-					const token_type: AccessTokenType = "bearer";
-
-					// TODO: Must handle the registration function failing
-					const { accessToken, accessTokenExpiresAt, refreshToken } = await registerClientAccess({
-						clientId,
-						scope: validatedScope,
-						providerId: AUTHORIZATION_SERVER_ID,
-						tokenType: token_type,
-					});
-
-					return Response.json(
-						{
-							scope: validatedScope,
+							scope,
 							access_token: accessToken,
 							token_type,
 							expires_in: remainingSecondsUntilTimestamp(accessTokenExpiresAt),
@@ -457,23 +463,147 @@ export const Route = createFileRoute("/token/")({
 				}
 
 				if (grantType === "refresh_token") {
-					return Response.json({
-						error: "server_error",
-						error_description: "Functionality is not yet implemented",
+					const [requestRefreshToken] = getUniqueField(body, "refresh_token");
+					if (!requestRefreshToken) {
+						return Response.json(
+							{
+								error: TokenErrorCodes.INVALID_REQUEST,
+								error_description:
+									"The request content must include a `refresh_token` parameter. It must not be included more than once.",
+							},
+							{
+								status: BAD_REQUEST.code,
+							},
+						);
+					}
+
+					// We check that the client has an access record
+					const accessRecord = await findAccessRecordByClientId(clientId);
+					if (!accessRecord) {
+						return Response.json(
+							{
+								error: TokenErrorCodes.UNAUTHORIZED_CLIENT,
+								error_description: "This client has not been granted access or the access has been revoked.",
+							},
+							{
+								status: UNAUTHORIZED.code,
+							},
+						);
+					}
+
+					// We check that a refresh token exists for this client
+					if (!accessRecord.refreshToken) {
+						return Response.json(
+							{
+								error: TokenErrorCodes.UNAUTHORIZED_CLIENT,
+								error_description:
+									"Thre is no refresh token associated with this client. The server either did not provide a refresh token to this client or the previous refresh token has been revoked.",
+							},
+							{
+								status: UNAUTHORIZED.code,
+							},
+						);
+					}
+
+					// We check that the existing token is not expired
+					if (isExpiredTimestamp(accessRecord.refreshTokenExpiresAt)) {
+						// If the refresh token is expired, the access token must be long expired as well
+						await deleteAccessRecord(accessRecord.id);
+
+						return Response.json(
+							{
+								error: TokenErrorCodes.INVALID_GRANT,
+								error_description:
+									"The provided `refresh_token` has expired. You need to start a new authorizaztion flow.",
+							},
+							{
+								status: BAD_REQUEST.code,
+							},
+						);
+					}
+
+					// We validate the refresh token received in the request
+					if (!isMatchingRefreshToken(requestRefreshToken, accessRecord.refreshToken)) {
+						return Response.json(
+							{
+								error: TokenErrorCodes.INVALID_GRANT,
+								error_description: "The provided `refresh_token` is invalid.",
+							},
+							{
+								status: UNAUTHORIZED.code,
+							},
+						);
+					}
+
+					// The Authorization Server can ignore the scope entirely, but if present, we must validate it
+					const [requestScope, scopeError] = getUniqueField(body, "scope");
+					if (scopeError?.reason === "duplicate_param") {
+						return Response.json(
+							{
+								error: TokenErrorCodes.INVALID_REQUEST,
+								error_description:
+									"The `scope` query parameter is optional. However, if provided, it must have a valid value and it must not be included more than once.",
+							},
+							{
+								status: BAD_REQUEST.code,
+							},
+						);
+					}
+
+					if (requestScope && !isScopeWithin(requestScope, accessRecord.scope)) {
+						return Response.json(
+							{
+								error: TokenErrorCodes.INVALID_REQUEST,
+								error_description: "The provided `scope` is not valid for the authorization code.",
+							},
+							{
+								status: BAD_REQUEST.code,
+							},
+						);
+					}
+
+					// Success! We can generate the tokens
+					const scope = requestScope ?? client.scope;
+					const token_type: AccessTokenType = "bearer";
+
+					// We genereate both a new access token as well as a new refresh token-- client must discard old ones
+
+					// TODO: Must handle the registration function failing
+					const { accessToken, accessTokenExpiresAt, refreshToken } = await registerClientAccess({
+						clientId,
+						scope,
+						tokenType: token_type,
 					});
+
+					return Response.json(
+						{
+							scope,
+							access_token: accessToken,
+							token_type,
+							expires_in: remainingSecondsUntilTimestamp(accessTokenExpiresAt),
+							refresh_token: refreshToken,
+						},
+						{
+							status: OK.code,
+							headers: {
+								"Cache-Control": "no-store",
+							},
+						},
+					);
 				}
 
 				// The request should never get here, but in case it does, we handle it
-				return Response.json({
-					error: "server_error",
-					error_description: "Server cannot process the request.",
-				});
+				return Response.json(
+					{
+						error: "server_error",
+						error_description: "Server cannot process the request.",
+					},
+					{ status: INTERNAL_SERVER_ERROR.code },
+				);
 			},
 		},
 	},
 });
-
-const AUTHORIZATION_SERVER_ID = "https://auth.example.com";
 
 function getUniqueField(formData: FormData, fieldName: string) {
 	const field = formData.getAll(fieldName);
@@ -491,12 +621,12 @@ async function findOAuthClientById(_clientId: string): Promise<OAuthClient | nul
 		redirect_uris: ["http://example.com"],
 		grant_types: ["authorization_code"],
 		response_types: ["code"],
-		token_endpoint_auth_method: "client_secret_basic",
+		token_endpoint_auth_method: "client_secret_post",
 		supported_oauth_versions: ["2.0", "2.1"],
 	};
 }
 
-function isValidClientSecret(secret: string, client: OAuthClient, type: "post" | "basic") {
+function isValidClientSecret(_secret: string, _client: OAuthClient, _type: "post" | "basic") {
 	/**
    *  When using the HTTP Basic authentication scheme as defined in
      Section 11 of [RFC9110] to authenticate with the authorization
@@ -520,150 +650,107 @@ type AuthenticationError = {
 	responseInit?: ResponseInit;
 };
 
-function authenticateClientWithSecretPost(name: string) {
-	return "Hello World";
-}
-
-function authenticateClientWithBasic(name: string) {
-	return "Hello World";
-}
-
-/**
- * For confidential clients, the authorization server MAY accept any form of
- * client authentication meeting its security requirements (e.g., client secret,
- * public/private key pair).
- */
-function authenticateClient(
+function authenticateWithClientSecretPost(
 	client: OAuthClient,
-	body: FormData,
+	clientSecret: string | undefined,
 ): [true, null] | [false, AuthenticationError] {
-	// TODO: Prevent multiple methods of authentication at the same time
-
-	// The client uses POST parameters
-	if (client.token_endpoint_auth_method === "client_secret_post") {
-		const [clientSecret] = getUniqueField(body, "client_secret");
-		if (!clientSecret) {
-			return [
-				false,
-				{
-					error: TokenErrorCodes.INVALID_REQUEST,
-					error_description:
-						"The request content must include a `client_secret` parameter for authenticating the client. It must not be included more than once. Alternatively, you can modify the client authentication preferences with the authorization server.",
-					responseInit: { status: BAD_REQUEST.code },
-				},
-			];
-		}
-
-		if (!isValidClientSecret(clientSecret, client, "post")) {
-			return [
-				false,
-				{
-					error: TokenErrorCodes.INVALID_CLIENT,
-					error_description: "The provided client secret is not valid.",
-					responseInit: { status: UNAUTHORIZED.code },
-				},
-			];
-		}
-
-		// Client is authenticated
-		return [true, null] as const;
-	}
-
-	// The client uses basic authentication
-	if (client.token_endpoint_auth_method === "client_secret_basic") {
-		const authorization = getRequestHeader("Authorization"); // NOTE: This is a side-effect; might fail
-		if (!authorization) {
-			return [
-				false,
-				{
-					error: TokenErrorCodes.INVALID_CLIENT,
-					error_description:
-						"The request content must include an 'Authorization' header for authenticating the client. Alternatively, you can modify the client authentication preferences with the authorization server.",
-					responseInit: {
-						status: UNAUTHORIZED.code,
-						headers: {
-							"WWW-Authenticate": `Basic realm="User Visible Realm", charset="UTF-8"`,
-						},
-					},
-				},
-			];
-		}
-
-		const [authorizationType, clientSecret] = authorization.split(" ");
-		if (authorizationType !== "Basic") {
-			return [
-				false,
-				{
-					error: TokenErrorCodes.INVALID_CLIENT,
-					error_description:
-						"The authorization header must be set to 'Basic'. The value must be separated with a space (e.g., `Authorization: Basic your_value`).",
-					responseInit: {
-						status: UNAUTHORIZED.code,
-						headers: {
-							"WWW-Authenticate": `Basic realm="User Visible Realm", charset="UTF-8"`,
-						},
-					},
-				},
-			];
-		}
-
-		if (!isValidClientSecret(clientSecret, client, "basic")) {
-			return [
-				false,
-				{
-					error: TokenErrorCodes.INVALID_CLIENT,
-					error_description: "The provided client secret is not valid.",
-					responseInit: {
-						status: UNAUTHORIZED.code,
-						headers: {
-							"WWW-Authenticate": `Basic realm="User Visible Realm", charset="UTF-8"`,
-						},
-					},
-				},
-			];
-		}
-
-		// Client is succesfully authenticated
-		return [true, null] as const;
-	}
-
-	return [
-		false,
-		{
-			error: TokenErrorCodes.INVALID_CLIENT,
-			error_description:
-				"The client does not have a valid authentication method for the /token endpoint registered with the server.",
-			responseInit: {
-				status: UNAUTHORIZED.code,
+	if (!clientSecret) {
+		return [
+			false,
+			{
+				error: TokenErrorCodes.INVALID_REQUEST,
+				error_description:
+					"The request content must include a `client_secret` parameter for authenticating this client. It must not be included more than once. Alternatively, you can modify the client authentication preferences with the authorization server.",
+				responseInit: { status: BAD_REQUEST.code },
 			},
-		},
-	] as const;
+		];
+	}
+
+	if (!isValidClientSecret(clientSecret, client, "post")) {
+		return [
+			false,
+			{
+				error: TokenErrorCodes.INVALID_CLIENT,
+				error_description: "The provided client secret is not valid.",
+				responseInit: { status: UNAUTHORIZED.code },
+			},
+		];
+	}
+
+	// Client is authenticated
+	return [true, null] as const;
 }
 
-function canUseGrantType(grantType: string, client: OAuthClient) {
+function authenticateWithClientSecretBasic(
+	client: OAuthClient,
+	authorization: string | undefined,
+): [true, null] | [false, AuthenticationError] {
+	if (!authorization) {
+		return [
+			false,
+			{
+				error: TokenErrorCodes.INVALID_CLIENT,
+				error_description:
+					"The request content must include an 'Authorization' header for authenticating the client. Alternatively, you can modify the client authentication preferences with the authorization server.",
+				responseInit: {
+					status: UNAUTHORIZED.code,
+					headers: {
+						"WWW-Authenticate": `Basic realm="User Visible Realm", charset="UTF-8"`,
+					},
+				},
+			},
+		];
+	}
+
+	const [authorizationType, clientSecret] = authorization.split(" ");
+	if (authorizationType !== "Basic") {
+		return [
+			false,
+			{
+				error: TokenErrorCodes.INVALID_CLIENT,
+				error_description:
+					"The authorization header must be set to 'Basic'. The value must be separated with a space (e.g., `Authorization: Basic your_value`).",
+				responseInit: {
+					status: UNAUTHORIZED.code,
+					headers: {
+						"WWW-Authenticate": `Basic realm="User Visible Realm", charset="UTF-8"`,
+					},
+				},
+			},
+		];
+	}
+
+	if (!isValidClientSecret(clientSecret, client, "basic")) {
+		return [
+			false,
+			{
+				error: TokenErrorCodes.INVALID_CLIENT,
+				error_description: "The provided client secret is not valid.",
+				responseInit: {
+					status: UNAUTHORIZED.code,
+					headers: {
+						"WWW-Authenticate": `Basic realm="User Visible Realm", charset="UTF-8"`,
+					},
+				},
+			},
+		];
+	}
+
+	// Client is succesfully authenticated
+	return [true, null] as const;
+}
+
+function canUseGrantType(_grantType: string, _client: OAuthClient) {
 	return false;
-}
-
-function isValidRedirectUri(uri: string, client: OAuthClient) {
-	/**
-	 * The validation of a redirect URI must comply with the OAuth 2.1 communication
-	 * security and other security best practices. This implementation is for
-	 * illustrations purposes only,
-	 *
-	 * An exception is made for native apps using a localhost URI: In this case, the
-	 * Authorization Server MUST allow variable port numbers as described in Section
-	 * 7.3 of [RFC8252]
-	 */
-
-	return client.redirect_uris.includes(uri);
 }
 
 function isExpiredTimestamp(_timestamp: number): boolean {
 	return false;
 }
 
-async function findAuthorizationCodeRecordByCode(_code: string): Promise<AuthorizationCodeRecord> {
+async function findAuthorizationCodeByClientId(_clientId: string): Promise<AuthorizationCodeRecord | null> {
 	return {
+		id: "some_db_id",
 		code: "afijlajd",
 		scope: "read",
 		clientId: "od23-r43a-oieh-j3oia",
@@ -672,9 +759,15 @@ async function findAuthorizationCodeRecordByCode(_code: string): Promise<Authori
 		codeChallengeMethod: "S256",
 		userAgent: "chromium_something",
 		isUsed: false,
-		expiresAt: Date.now() + 10 * 60 * 1000, // 10 mins from now
+		expiresAt: 1761482700,
 	};
 }
+
+async function findAccessRecordByClientId(_clientId: string): Promise<ClientAccessRecord | null> {
+	return {} as ClientAccessRecord;
+}
+
+async function deleteAccessRecord(_recordId: string): Promise<void> {}
 
 function isValidCodeVerifier(_codeVerifier: string, _targetRecord: AuthorizationCodeRecord) {
 	/**
@@ -683,6 +776,10 @@ function isValidCodeVerifier(_codeVerifier: string, _targetRecord: Authorization
 	 * it according to the code_challenge_method method specified by the client
 	 */
 
+	return false;
+}
+
+function isMatchingRefreshToken(_source: string, _target: string) {
 	return false;
 }
 
@@ -732,17 +829,21 @@ async function registerClientAccess(_info: Partial<ClientAccessRecord>): Promise
 
 	// Here we actually go and store it in the storage
 	await createClientAccess({
+		id: "random_id",
 		clientId: _info.clientId as string,
 		scope: _info.scope as string,
-		providerId: AUTHORIZATION_SERVER_ID,
 		tokenType: _info.tokenType as AccessTokenType,
 		accessToken,
 		accessTokenExpiresAt,
 		refreshToken,
 		refreshTokenExpiresAt,
-	}); // TODO: Should guard against potential registration errors with the storage
+	});
+
+	// TODO: Should guard against potential registration errors with the storage
 
 	return { accessToken, accessTokenExpiresAt, refreshToken } as ClientTokens;
 }
 
-async function createClientAccess(info: ClientAccessRecord): Promise<void> {}
+async function createClientAccess(_info: ClientAccessRecord): Promise<void> {}
+
+async function deleteAuthorizationCode(_id: string): Promise<void> {}
