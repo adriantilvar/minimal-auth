@@ -1,7 +1,6 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { createClientOnlyFn, createMiddleware } from "@tanstack/react-start";
 import type { ComponentProps } from "react";
-import { AuthorizationErrorCodes } from "@/lib/errors/oauth";
 import type {
 	AuthorizationCodeRecord,
 	CodeChallengeMethod,
@@ -11,6 +10,7 @@ import type {
 	Scope,
 } from "@/lib/types";
 import { isString } from "@/lib/utils";
+import { ErrorCodes } from "./-error-codes";
 
 // NOTE: The fragment component is stripped by the server, but it should also be enforced by client
 const authorizationRequestValidation = createMiddleware().server(async ({ next, request }) => {
@@ -31,7 +31,7 @@ const authorizationRequestValidation = createMiddleware().server(async ({ next, 
 		throw redirect({
 			href: createUrl(ERROR_ENDPOINT, {
 				query: {
-					error: AuthorizationErrorCodes.INVALID_REQUEST,
+					error: ErrorCodes.INVALID_REQUEST,
 					error_description:
 						"Request URI must include a `client_id` query parameter. It must not be included more than once.",
 				},
@@ -44,7 +44,7 @@ const authorizationRequestValidation = createMiddleware().server(async ({ next, 
 		throw redirect({
 			href: createUrl(ERROR_ENDPOINT, {
 				query: {
-					error: AuthorizationErrorCodes.INVALID_REQUEST,
+					error: ErrorCodes.INVALID_REQUEST,
 					error_description:
 						"No client is registered with the provided `client_id`. You need to register the client before requesting an authorization grant.",
 				},
@@ -60,7 +60,7 @@ const authorizationRequestValidation = createMiddleware().server(async ({ next, 
 		throw redirect({
 			href: createUrl(ERROR_ENDPOINT, {
 				query: {
-					error: AuthorizationErrorCodes.INVALID_REQUEST,
+					error: ErrorCodes.INVALID_REQUEST,
 					error_description:
 						"The request URI must include a `redirect_uri` query parameter. It must not be included more than once.",
 				},
@@ -72,7 +72,7 @@ const authorizationRequestValidation = createMiddleware().server(async ({ next, 
 		throw redirect({
 			href: createUrl(ERROR_ENDPOINT, {
 				query: {
-					error: AuthorizationErrorCodes.INVALID_REQUEST,
+					error: ErrorCodes.INVALID_REQUEST,
 					error_description:
 						"The provided redirect URI is not registered for this client or is otherwise invalid.",
 				},
@@ -94,7 +94,7 @@ const authorizationRequestValidation = createMiddleware().server(async ({ next, 
 		throw redirect({
 			href: createUrl(safeRedirectUri, {
 				query: {
-					error: AuthorizationErrorCodes.INVALID_REQUEST,
+					error: ErrorCodes.INVALID_REQUEST,
 					error_description:
 						"The `state` query parameter is optional. However, if provided, it must not be included more than once.",
 					iss: AUTHORIZATION_SERVER_ID,
@@ -108,7 +108,7 @@ const authorizationRequestValidation = createMiddleware().server(async ({ next, 
 		throw redirect({
 			href: createUrl(safeRedirectUri, {
 				query: {
-					error: AuthorizationErrorCodes.INVALID_REQUEST,
+					error: ErrorCodes.INVALID_REQUEST,
 					error_description:
 						"Request URI must include a `response_type` query parameter. It must not be included more than once.",
 					// An error_uri can be added as well
@@ -123,7 +123,7 @@ const authorizationRequestValidation = createMiddleware().server(async ({ next, 
 		throw redirect({
 			href: createUrl(safeRedirectUri, {
 				query: {
-					error: AuthorizationErrorCodes.UNSUPPORTED_RESPONSE_TYPE,
+					error: ErrorCodes.UNSUPPORTED_RESPONSE_TYPE,
 					error_description:
 						"This server can only provide authorization code grants. If you wish to obtain an authorization code, you must set the value of the `response_type` parameter to 'code'.",
 					// An error_uri can be added as well
@@ -139,7 +139,7 @@ const authorizationRequestValidation = createMiddleware().server(async ({ next, 
 		throw redirect({
 			href: createUrl(safeRedirectUri, {
 				query: {
-					error: AuthorizationErrorCodes.INVALID_REQUEST,
+					error: ErrorCodes.INVALID_REQUEST,
 					error_description:
 						"Request URI must include a `code_challenge` query parameter. It must not be included more than once.",
 					iss: AUTHORIZATION_SERVER_ID,
@@ -154,7 +154,7 @@ const authorizationRequestValidation = createMiddleware().server(async ({ next, 
 		throw redirect({
 			href: createUrl(safeRedirectUri, {
 				query: {
-					error: AuthorizationErrorCodes.INVALID_REQUEST,
+					error: ErrorCodes.INVALID_REQUEST,
 					error_description:
 						"Request URI must include a `code_challenge_method` query parameter. It must not be included more than once.",
 					iss: AUTHORIZATION_SERVER_ID,
@@ -168,7 +168,7 @@ const authorizationRequestValidation = createMiddleware().server(async ({ next, 
 		throw redirect({
 			href: createUrl(safeRedirectUri, {
 				query: {
-					error: AuthorizationErrorCodes.INVALID_REQUEST,
+					error: ErrorCodes.INVALID_REQUEST,
 					error_description: "The provided `code_challenge_method` is not valid.",
 					iss: AUTHORIZATION_SERVER_ID,
 					state,
@@ -181,7 +181,7 @@ const authorizationRequestValidation = createMiddleware().server(async ({ next, 
 		throw redirect({
 			href: createUrl(safeRedirectUri, {
 				query: {
-					error: AuthorizationErrorCodes.UNAUTHORIZED_CLIENT,
+					error: ErrorCodes.UNAUTHORIZED_CLIENT,
 					error_description: "This client is not allowed to request an authorization code grant.",
 					iss: AUTHORIZATION_SERVER_ID,
 					state,
@@ -195,7 +195,7 @@ const authorizationRequestValidation = createMiddleware().server(async ({ next, 
 		throw redirect({
 			href: createUrl(safeRedirectUri, {
 				query: {
-					error: AuthorizationErrorCodes.INVALID_REQUEST,
+					error: ErrorCodes.INVALID_REQUEST,
 					error_description:
 						"The `scope` query parameter is optional. However, if provided, it must not be included more than once.",
 					iss: AUTHORIZATION_SERVER_ID,
@@ -210,7 +210,7 @@ const authorizationRequestValidation = createMiddleware().server(async ({ next, 
 		throw redirect({
 			href: createUrl(safeRedirectUri, {
 				query: {
-					error: AuthorizationErrorCodes.INVALID_SCOPE,
+					error: ErrorCodes.INVALID_SCOPE,
 					error_description: "The provided `scope` is not valid",
 					iss: AUTHORIZATION_SERVER_ID,
 					state,
@@ -302,7 +302,7 @@ function AuthorizationPage() {
 		externalRedirect(
 			createUrl(redirect_uri, {
 				query: {
-					error: AuthorizationErrorCodes.ACCESS_DENIED,
+					error: ErrorCodes.ACCESS_DENIED,
 					error_description: "The resource owner has denied the authorization code request",
 					iss: AUTHORIZATION_SERVER_ID,
 					state,

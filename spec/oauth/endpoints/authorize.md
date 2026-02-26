@@ -1,6 +1,6 @@
-# Authorization Endpoint
+# Authorize Endpoint
 
-The `/authorization` endpoint is used to interact with the `Resource Owner` and obtain an _authorization grant_.
+The `/authorize` endpoint is used to interact with the `Resource Owner` and obtain an _authorization grant_.
 
 > [!IMPORTANT]
 > The `Authorization Server` must first authenticate the `Resource Owner`.
@@ -12,6 +12,7 @@ The `/authorization` endpoint URL **MUST NOT** include a fragment component. It 
 The `Authorization Server` **MUST** support the use of the HTTP `GET` method (Section 9.3.1 of [RFC9110]) for the authorization endpoint and **MAY** support the `POST` method (Section 9.3.3 of [RFC9110]) as well.
 
 > [!NOTE]
+>
 > - The `Authorization Server` **MUST** ignore unrecognized request parameters.
 > - Request and response parameters **MUST NOT** be included more than once.
 > - Parameters sent without a value **MUST** be treated as if they were omitted from the request.

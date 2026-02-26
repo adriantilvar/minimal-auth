@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { getRequestHeader } from "@tanstack/react-start/server";
-import { type TokenErrorCode, TokenErrorCodes } from "@/lib/errors/oauth";
-import { BAD_REQUEST, INTERNAL_SERVER_ERROR, OK, UNAUTHORIZED } from "@/lib/http/response-status-codes";
+import { BAD_REQUEST, INTERNAL_SERVER_ERROR, OK, UNAUTHORIZED } from "@/lib/const/http-response-status";
 import type {
 	AccessToken,
 	AccessTokenType,
@@ -46,12 +45,22 @@ export const Route = createFileRoute("/token/")({
 	server: {
 		handlers: {
 			POST: async ({ request }) => {
+				if (!isSecureConnection(request.url)) {
+					return Response.json(
+						{
+							error: ErrorCodes.INVALID_REQUEST,
+							error_description: "The request must be made over HTTPS.",
+						},
+						{ status: BAD_REQUEST.code },
+					);
+				}
+
 				const contentType = getRequestHeader("Content-Type");
 				if (!contentType) {
 					// Automatically sets the Content-Type header to `application/json` and serializes the JSON object
 					return Response.json(
 						{
-							error: TokenErrorCodes.INVALID_REQUEST,
+							error: ErrorCodes.INVALID_REQUEST,
 							error_description: "The request must include `Content-Type` header",
 						},
 						{ status: BAD_REQUEST.code },
@@ -63,7 +72,7 @@ export const Route = createFileRoute("/token/")({
 				if (mediaType !== "application/x-www-form-urlencoded") {
 					return Response.json(
 						{
-							error: TokenErrorCodes.INVALID_REQUEST,
+							error: ErrorCodes.INVALID_REQUEST,
 							error_description: "The request must use `application/x-www-form-urlencoded` media type.",
 						},
 						{ status: BAD_REQUEST.code },
@@ -74,7 +83,7 @@ export const Route = createFileRoute("/token/")({
 				if (encoding && encoding.toLowerCase() !== "charset=utf-8") {
 					return Response.json(
 						{
-							error: TokenErrorCodes.INVALID_REQUEST,
+							error: ErrorCodes.INVALID_REQUEST,
 							error_description: "The request must use UTF-8 character encoding.",
 						},
 						{ status: BAD_REQUEST.code },
@@ -87,7 +96,7 @@ export const Route = createFileRoute("/token/")({
 				if (!grantType) {
 					return Response.json(
 						{
-							error: TokenErrorCodes.INVALID_REQUEST,
+							error: ErrorCodes.INVALID_REQUEST,
 							error_description:
 								"The request content must include a `grant_type` parameter. It must not be included more than once.",
 						},
@@ -99,7 +108,7 @@ export const Route = createFileRoute("/token/")({
 
 				if (!isValidGrantType(grantType)) {
 					return Response.json({
-						error: TokenErrorCodes.UNSUPPORTED_GRANT_TYPE,
+						error: ErrorCodes.UNSUPPORTED_GRANT_TYPE,
 						error_description: `The '${grantType}' grant type is not a supported.`,
 					});
 				}
@@ -109,7 +118,7 @@ export const Route = createFileRoute("/token/")({
 				if (!clientId) {
 					return Response.json(
 						{
-							error: TokenErrorCodes.INVALID_REQUEST,
+							error: ErrorCodes.INVALID_REQUEST,
 							error_description:
 								"The request content must include a `client_id` parameter. It must not be included more than once.",
 						},
@@ -123,7 +132,7 @@ export const Route = createFileRoute("/token/")({
 				if (!client) {
 					return Response.json(
 						{
-							error: TokenErrorCodes.INVALID_CLIENT,
+							error: ErrorCodes.INVALID_CLIENT,
 							error_description:
 								"No client is registered with the provided `client_id`. You need to register the client before requesting an access token.",
 						},
@@ -137,7 +146,7 @@ export const Route = createFileRoute("/token/")({
 				if (!canUseGrantType(grantType, client)) {
 					return Response.json(
 						{
-							error: TokenErrorCodes.UNAUTHORIZED_CLIENT,
+							error: ErrorCodes.UNAUTHORIZED_CLIENT,
 							error_description: "The client is not authorized to use this authorization grant type.",
 						},
 						{
@@ -153,7 +162,7 @@ export const Route = createFileRoute("/token/")({
 					 */
 					return Response.json(
 						{
-							error: TokenErrorCodes.INVALID_CLIENT,
+							error: ErrorCodes.INVALID_CLIENT,
 							error_description: "The server does not support public clients for the time being.",
 						},
 						{
@@ -168,7 +177,7 @@ export const Route = createFileRoute("/token/")({
 				if (!client.token_endpoint_auth_method || client.token_endpoint_auth_method === "none") {
 					return Response.json(
 						{
-							error: TokenErrorCodes.INVALID_CLIENT,
+							error: ErrorCodes.INVALID_CLIENT,
 							error_description:
 								"The client registration does not have a valid authentication method for the /token endpoint.",
 						},
@@ -183,7 +192,7 @@ export const Route = createFileRoute("/token/")({
 				if (authorization && clientSecret) {
 					return Response.json(
 						{
-							error: TokenErrorCodes.INVALID_REQUEST,
+							error: ErrorCodes.INVALID_REQUEST,
 							error_description: "The request must use only one method for authenticating the client.",
 						},
 						{ status: UNAUTHORIZED.code },
@@ -215,7 +224,7 @@ export const Route = createFileRoute("/token/")({
 					if (client.type !== "confidential") {
 						return Response.json(
 							{
-								error: TokenErrorCodes.UNAUTHORIZED_CLIENT,
+								error: ErrorCodes.UNAUTHORIZED_CLIENT,
 								error_description: "The client is not authorized to use this authorization grant type.",
 							},
 							{
@@ -229,7 +238,7 @@ export const Route = createFileRoute("/token/")({
 					if (scopeError?.reason === "duplicate_param") {
 						return Response.json(
 							{
-								error: TokenErrorCodes.INVALID_REQUEST,
+								error: ErrorCodes.INVALID_REQUEST,
 								error_description:
 									"The `scope` query parameter is optional. However, if provided, it must have a valid value and it must not be included more than once.",
 							},
@@ -242,7 +251,7 @@ export const Route = createFileRoute("/token/")({
 					if (requestScope && !isScopeWithin(requestScope, client.scope)) {
 						return Response.json(
 							{
-								error: TokenErrorCodes.INVALID_REQUEST,
+								error: ErrorCodes.INVALID_REQUEST,
 								error_description: "The provided `scope` is not within the allowed scope for this client.",
 							},
 							{
@@ -291,7 +300,7 @@ export const Route = createFileRoute("/token/")({
 					if (!code) {
 						return Response.json(
 							{
-								error: TokenErrorCodes.INVALID_REQUEST,
+								error: ErrorCodes.INVALID_REQUEST,
 								error_description:
 									"The request content must include a `code` parameter. It must not be included more than once.",
 							},
@@ -306,7 +315,7 @@ export const Route = createFileRoute("/token/")({
 					if (!codeRecord) {
 						return Response.json(
 							{
-								error: TokenErrorCodes.INVALID_GRANT,
+								error: ErrorCodes.INVALID_GRANT,
 								error_description:
 									"No record was found for the provided `code`. The code is either incorrect or it has been revoked.",
 							},
@@ -323,7 +332,7 @@ export const Route = createFileRoute("/token/")({
 
 						return Response.json(
 							{
-								error: TokenErrorCodes.INVALID_GRANT,
+								error: ErrorCodes.INVALID_GRANT,
 								error_description:
 									"The provided `code` has already been used. All tokens previously issued for it are now revoked.",
 							},
@@ -340,7 +349,7 @@ export const Route = createFileRoute("/token/")({
 
 						return Response.json(
 							{
-								error: TokenErrorCodes.INVALID_GRANT,
+								error: ErrorCodes.INVALID_GRANT,
 								error_description:
 									"The provided `code` has expired. You need to start a new authorization flow.",
 							},
@@ -356,7 +365,7 @@ export const Route = createFileRoute("/token/")({
 					if (!redirectUri) {
 						return Response.json(
 							{
-								error: TokenErrorCodes.INVALID_REQUEST,
+								error: ErrorCodes.INVALID_REQUEST,
 								error_description:
 									"The request content must include a `redirect_uri` parameter. It must not be included more than once.",
 							},
@@ -370,7 +379,7 @@ export const Route = createFileRoute("/token/")({
 					if (redirectUri !== codeRecord.redirectUri) {
 						return Response.json(
 							{
-								error: TokenErrorCodes.INVALID_REQUEST,
+								error: ErrorCodes.INVALID_REQUEST,
 								error_description:
 									"The provided redirect URI does not match the one used for the authorization code grant request.",
 							},
@@ -384,7 +393,7 @@ export const Route = createFileRoute("/token/")({
 					if (!codeVerifier) {
 						return Response.json(
 							{
-								error: TokenErrorCodes.INVALID_REQUEST,
+								error: ErrorCodes.INVALID_REQUEST,
 								error_description:
 									"The provided request content must include a `code_verifier` parameter. It must not be included more than once.",
 							},
@@ -398,7 +407,7 @@ export const Route = createFileRoute("/token/")({
 					if (!isValidCodeVerifier(codeVerifier, codeRecord)) {
 						return Response.json(
 							{
-								error: TokenErrorCodes.INVALID_REQUEST,
+								error: ErrorCodes.INVALID_REQUEST,
 								error_description: "The provided `code_verifier` is invalid.",
 							},
 							{
@@ -412,7 +421,7 @@ export const Route = createFileRoute("/token/")({
 					if (scopeError?.reason === "duplicate_param") {
 						return Response.json(
 							{
-								error: TokenErrorCodes.INVALID_REQUEST,
+								error: ErrorCodes.INVALID_REQUEST,
 								error_description:
 									"The `scope` query parameter is optional. However, if provided, it must have a valid value and it must not be included more than once.",
 							},
@@ -425,7 +434,7 @@ export const Route = createFileRoute("/token/")({
 					if (requestScope && !isScopeWithin(requestScope, codeRecord.scope)) {
 						return Response.json(
 							{
-								error: TokenErrorCodes.INVALID_REQUEST,
+								error: ErrorCodes.INVALID_REQUEST,
 								error_description: "The provided `scope` is not valid for the authorization code.",
 							},
 							{
@@ -467,7 +476,7 @@ export const Route = createFileRoute("/token/")({
 					if (!requestRefreshToken) {
 						return Response.json(
 							{
-								error: TokenErrorCodes.INVALID_REQUEST,
+								error: ErrorCodes.INVALID_REQUEST,
 								error_description:
 									"The request content must include a `refresh_token` parameter. It must not be included more than once.",
 							},
@@ -482,7 +491,7 @@ export const Route = createFileRoute("/token/")({
 					if (!accessRecord) {
 						return Response.json(
 							{
-								error: TokenErrorCodes.UNAUTHORIZED_CLIENT,
+								error: ErrorCodes.UNAUTHORIZED_CLIENT,
 								error_description: "This client has not been granted access or the access has been revoked.",
 							},
 							{
@@ -495,7 +504,7 @@ export const Route = createFileRoute("/token/")({
 					if (!accessRecord.refreshToken) {
 						return Response.json(
 							{
-								error: TokenErrorCodes.UNAUTHORIZED_CLIENT,
+								error: ErrorCodes.UNAUTHORIZED_CLIENT,
 								error_description:
 									"Thre is no refresh token associated with this client. The server either did not provide a refresh token to this client or the previous refresh token has been revoked.",
 							},
@@ -512,7 +521,7 @@ export const Route = createFileRoute("/token/")({
 
 						return Response.json(
 							{
-								error: TokenErrorCodes.INVALID_GRANT,
+								error: ErrorCodes.INVALID_GRANT,
 								error_description:
 									"The provided `refresh_token` has expired. You need to start a new authorizaztion flow.",
 							},
@@ -526,7 +535,7 @@ export const Route = createFileRoute("/token/")({
 					if (!isMatchingRefreshToken(requestRefreshToken, accessRecord.refreshToken)) {
 						return Response.json(
 							{
-								error: TokenErrorCodes.INVALID_GRANT,
+								error: ErrorCodes.INVALID_GRANT,
 								error_description: "The provided `refresh_token` is invalid.",
 							},
 							{
@@ -540,7 +549,7 @@ export const Route = createFileRoute("/token/")({
 					if (scopeError?.reason === "duplicate_param") {
 						return Response.json(
 							{
-								error: TokenErrorCodes.INVALID_REQUEST,
+								error: ErrorCodes.INVALID_REQUEST,
 								error_description:
 									"The `scope` query parameter is optional. However, if provided, it must have a valid value and it must not be included more than once.",
 							},
@@ -553,7 +562,7 @@ export const Route = createFileRoute("/token/")({
 					if (requestScope && !isScopeWithin(requestScope, accessRecord.scope)) {
 						return Response.json(
 							{
-								error: TokenErrorCodes.INVALID_REQUEST,
+								error: ErrorCodes.INVALID_REQUEST,
 								error_description: "The provided `scope` is not valid for the authorization code.",
 							},
 							{
@@ -604,6 +613,13 @@ export const Route = createFileRoute("/token/")({
 		},
 	},
 });
+
+function isSecureConnection(url: string) {
+	/**
+	 * This is for illustration purposes-only. In production environment, HTTPS should be enforced at the host level
+	 */
+	return url.includes("localhost") || url.startsWith("https://");
+}
 
 function getUniqueField(formData: FormData, fieldName: string) {
 	const field = formData.getAll(fieldName);
@@ -658,7 +674,7 @@ function authenticateWithClientSecretPost(
 		return [
 			false,
 			{
-				error: TokenErrorCodes.INVALID_REQUEST,
+				error: ErrorCodes.INVALID_REQUEST,
 				error_description:
 					"The request content must include a `client_secret` parameter for authenticating this client. It must not be included more than once. Alternatively, you can modify the client authentication preferences with the authorization server.",
 				responseInit: { status: BAD_REQUEST.code },
@@ -670,7 +686,7 @@ function authenticateWithClientSecretPost(
 		return [
 			false,
 			{
-				error: TokenErrorCodes.INVALID_CLIENT,
+				error: ErrorCodes.INVALID_CLIENT,
 				error_description: "The provided client secret is not valid.",
 				responseInit: { status: UNAUTHORIZED.code },
 			},
@@ -689,7 +705,7 @@ function authenticateWithClientSecretBasic(
 		return [
 			false,
 			{
-				error: TokenErrorCodes.INVALID_CLIENT,
+				error: ErrorCodes.INVALID_CLIENT,
 				error_description:
 					"The request content must include an 'Authorization' header for authenticating the client. Alternatively, you can modify the client authentication preferences with the authorization server.",
 				responseInit: {
@@ -707,7 +723,7 @@ function authenticateWithClientSecretBasic(
 		return [
 			false,
 			{
-				error: TokenErrorCodes.INVALID_CLIENT,
+				error: ErrorCodes.INVALID_CLIENT,
 				error_description:
 					"The authorization header must be set to 'Basic'. The value must be separated with a space (e.g., `Authorization: Basic your_value`).",
 				responseInit: {
@@ -724,7 +740,7 @@ function authenticateWithClientSecretBasic(
 		return [
 			false,
 			{
-				error: TokenErrorCodes.INVALID_CLIENT,
+				error: ErrorCodes.INVALID_CLIENT,
 				error_description: "The provided client secret is not valid.",
 				responseInit: {
 					status: UNAUTHORIZED.code,
